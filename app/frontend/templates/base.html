@@ -1,0 +1,21 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>{{ app_name }}</title>
+    <link rel="stylesheet" href="/static/styles.css">
+  </head>
+  <body>
+    <nav>
+      <div>{{ app_name }}</div>
+      {% if user %}
+      <div>
+        {{ user.full_name }} ({{ user.role.value if user.role else user.role }})
+      </div>
+      {% endif %}
+    </nav>
+    <div class="container">
+      {% block content %}{% endblock %}
+    </div>
+  </body>
+</html>

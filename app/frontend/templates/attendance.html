@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Attendance</h2>
+<form method="post" action="/attendance/create">
+  <div class="form-row">
+    <div>
+      <label>Employee</label>
+      <select name="employee_id">
+        {% for e in employees %}
+        <option value="{{ e.id }}">{{ e.first_name }} {{ e.last_name }} ({{ e.branch_id }})</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label>Date</label>
+      <input type="date" name="date" required>
+    </div>
+  </div>
+  <div class="form-row">
+    <div>
+      <label>Type</label>
+      <select name="atype">
+        <option value="present">Present</option>
+        <option value="absent">Absent</option>
+      </select>
+    </div>
+    <div>
+      <label>Note</label>
+      <input name="note">
+    </div>
+  </div>
+  <p><button>Save</button></p>
+</form>
+
+<table>
+  <tr><th>#</th><th>Employee</th><th>Date</th><th>Type</th><th>Note</th></tr>
+  {% for a in attendance %}
+  <tr>
+    <td>{{ a.id }}</td>
+    <td>{{ a.employee_id }}</td>
+    <td>{{ a.date }}</td>
+    <td>{{ a.atype }}</td>
+    <td>{{ a.note or '' }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% endblock %}

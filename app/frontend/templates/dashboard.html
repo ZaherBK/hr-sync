@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Dashboard</h2>
+<p>Quick links:</p>
+<p>
+  <a href="/employees">Employees</a> |
+  <a href="/attendance">Attendance</a> |
+  <a href="/leaves">Leaves</a>
+</p>
+<h3>Latest activity</h3>
+<table>
+  <tr><th>When</th><th>Action</th><th>Entity</th><th>Details</th></tr>
+  {% for a in activity %}
+  <tr>
+    <td>{{ a.created_at }}</td>
+    <td>{{ a.action }}</td>
+    <td>{{ a.entity }}{% if a.entity_id %} #{{ a.entity_id }}{% endif %}</td>
+    <td>{{ a.details or '' }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% endblock %}

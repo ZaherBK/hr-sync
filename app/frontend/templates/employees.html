@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Employees</h2>
+<form method="post" action="/employees/create">
+  <div class="form-row">
+    <div><label>First name</label><input name="first_name" required></div>
+    <div><label>Last name</label><input name="last_name" required></div>
+  </div>
+  <div class="form-row">
+    <div><label>Position</label><input name="position" required></div>
+    <div>
+      <label>Branch</label>
+      <select name="branch_id">
+        {% for b in branches %}
+        <option value="{{ b.id }}">{{ b.name }} ({{ b.city }})</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+  <p><button>Add employee</button></p>
+</form>
+
+<table>
+  <tr><th>#</th><th>Name</th><th>Position</th><th>Branch</th><th>Status</th></tr>
+  {% for e in employees %}
+  <tr>
+    <td>{{ e.id }}</td>
+    <td>{{ e.first_name }} {{ e.last_name }}</td>
+    <td>{{ e.position }}</td>
+    <td>{{ e.branch_id }}</td>
+    <td>{{ "Active" if e.active else "Inactive" }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% endblock %}

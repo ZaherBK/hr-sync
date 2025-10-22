@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Leaves</h2>
+<form method="post" action="/leaves/create">
+  <div class="form-row">
+    <div>
+      <label>Employee</label>
+      <select name="employee_id">
+        {% for e in employees %}
+        <option value="{{ e.id }}">{{ e.first_name }} {{ e.last_name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div><label>Start</label><input type="date" name="start_date" required></div>
+  </div>
+  <div class="form-row">
+    <div><label>End</label><input type="date" name="end_date" required></div>
+    <div>
+      <label>Type</label>
+      <select name="ltype">
+        <option value="paid">Paid</option>
+        <option value="unpaid">Unpaid</option>
+        <option value="sick">Sick</option>
+      </select>
+    </div>
+  </div>
+  <p><button>Request leave</button></p>
+</form>
+
+<table>
+  <tr><th>#</th><th>Employee</th><th>Dates</th><th>Type</th><th>Approved</th><th></th></tr>
+  {% for l in leaves %}
+  <tr>
+    <td>{{ l.id }}</td>
+    <td>{{ l.employee_id }}</td>
+    <td>{{ l.start_date }} → {{ l.end_date }}</td>
+    <td>{{ l.ltype }}</td>
+    <td>{{ "✓" if l.approved else "–" }}</td>
+    <td>
+      {% if not l.approved and user.role.value != 'staff' %}
+      <form method="post" action="/leaves/{{ l.id }}/approve">
+        <button>Approve</button>
+      </form>
+      {% endif %}
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+{% endblock %}
