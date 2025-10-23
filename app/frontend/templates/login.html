@@ -1,22 +1,43 @@
-{% extends "base.html" %}
-{% block content %}
-<h2>Login</h2>
-<form method="post" action="/login">
-  <div class="form-row">
-    <div>
-      <label>User</label>
-      <select name="username">
-        <option value="zaher">Zaher</option>
-        <option value="ariana">Manager Ariana</option>
-        <option value="nabeul">Manager Nabeul</option>
-      </select>
-    </div>
-    <div>
-      <label>Password</label>
-      <input name="password" type="password" required>
-    </div>
-  </div>
-  <p><button>Sign in</button></p>
-  {% if error %}<p style="color:#b91c1c">{{ error }}</p>{% endif %}
-</form>
-{% endblock %}
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>HR Sync – Login</title>
+    <style>
+      body{background:#111;color:#eee;font-family:Segoe UI,Arial,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}
+      .card{background:#1c1c1c;border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.45);padding:28px 34px;width:560px}
+      .title{font-size:26px;margin:0 0 18px 0;letter-spacing:.5px}
+      .row{display:flex;gap:16px}
+      label{display:block;margin:10px 0 6px 2px;font-size:13px;color:#bfbfbf}
+      select,input[type=password]{width:100%;padding:12px 14px;border-radius:10px;border:1px solid #333;background:#121212;color:#fff;outline:none}
+      .actions{margin-top:18px;display:flex;justify-content:flex-end}
+      button{background:#e2b13c;border:none;color:#111;font-weight:700;padding:10px 18px;border-radius:10px;cursor:pointer}
+      button:hover{filter:brightness(1.05)}
+    </style>
+  </head>
+  <body>
+    <form class="card" method="post" action="/login">
+      <h1 class="title">Connexion</h1>
+
+      <div class="row">
+        <div style="flex:1">
+          <label>Utilisateur</label>
+          <!-- IMPORTANT: القيم value هي الإيميلات الداخلية التي يعرفها الباك-إند -->
+          <select name="username" required>
+            <option value="zaher@local">ZAHER (Owner)</option>
+            <option value="ariana@local">ARIANA (Manager)</option>
+            <option value="nabeul@local">NABEUL (Manager)</option>
+          </select>
+        </div>
+        <div style="flex:1">
+          <label>Mot de passe</label>
+          <input type="password" name="password" required />
+        </div>
+      </div>
+
+      <div class="actions">
+        <button type="submit">Sign in</button>
+      </div>
+    </form>
+  </body>
+</html>
