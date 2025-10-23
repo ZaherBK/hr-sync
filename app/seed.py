@@ -22,34 +22,35 @@ async def run() -> None:
     async with AsyncSessionLocal() as session:
         # Create branches
         nabeul = Branch(name="Nabeul", city="Nabeul")
-        tunis = Branch(name="Tunis", city="Tunis")
-        session.add_all([nabeul, tunis])
+        # Rename the second branch to Ariana to match the manager
+        ariana_branch = Branch(name="Ariana", city="Ariana")
+        session.add_all([nabeul, ariana_branch])
         await session.flush()
 
-        # Admin (global)
-        admin = User(
-            email="admin@example.com",
-            full_name="Super Admin",
+        # Owner (Zaher)
+        zaher = User(
+            email="zaher",
+            full_name="Zaher",
             role=Role.admin,
             branch_id=None,
-            hashed_password=hash_password("admin123"),
+            hashed_password=hash_password("zah1405"),
         )
-        # Managers
+        # Managers with custom usernames and passwords
         manager_nabeul = User(
-            email="manager.nabeul@example.com",
+            email="nabeul",
             full_name="Manager Nabeul",
             role=Role.manager,
             branch_id=nabeul.id,
-            hashed_password=hash_password("manager123"),
+            hashed_password=hash_password("na123"),
         )
-        manager_tunis = User(
-            email="manager.tunis@example.com",
-            full_name="Manager Tunis",
+        manager_ariana = User(
+            email="ariana",
+            full_name="Manager Ariana",
             role=Role.manager,
-            branch_id=tunis.id,
-            hashed_password=hash_password("manager123"),
+            branch_id=ariana_branch.id,
+            hashed_password=hash_password("ar123"),
         )
-        session.add_all([admin, manager_nabeul, manager_tunis])
+        session.add_all([zaher, manager_nabeul, manager_ariana])
 
         # Employees
         session.add_all([
