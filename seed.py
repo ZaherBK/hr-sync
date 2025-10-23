@@ -1,55 +1,94 @@
 import asyncio
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 
-# FIX 1: Import from 'app.db', not 'app.database'
-# FIX 2: Import 'AsyncSessionLocal' and rename it
-from app.db import AsyncSessionLocal as async_session_maker, engine
-
-# FIX 3: Your model file is 'app/models.py'
-from app.models import Base, User, Role
-
-# FIX 4: Your auth file has 'hash_password', not 'get_password_hash'
-from app.auth import hash_password as get_password_hash
+# Utiliser les bons chemins d'importation relatifs au projet
+from app.db import AsyncSessionLocal, engine
+from app.models import Base, User, Role, Branch # Importer aussi Branch
+from app.auth import hash_password # Utiliser hash_password
 
 async def seed():
+    """Crée les tables et ajoute les données initiales (magasins, utilisateurs)."""
+    print("Début du script de seeding...")
     async with engine.begin() as conn:
-        # إنشاء الجداول لو مش موجودة
+        print("Création/Vérification des tables...")
+        # Supprimer toutes les tables (optionnel, pour repartir de zéro)
+        # ATTENTION: Supprime TOUTES les données existantes
+        # await conn.run_sync(Base.metadata.drop_all)
+        # print("Anciennes tables supprimées.")
         await conn.run_sync(Base.metadata.create_all)
+        print("Tables créées/vérifiées.")
 
-    async with async_session_maker() as session:
-        # حذف المستخدمين القدامى
-        await session.execute(delete(User))
+    async with AsyncSessionLocal() as session:
+        # Vérifier si les magasins existent déjà pour éviter les doublons
+        res_branches = await session.execute(select(Branch).limit(1))
+        if res_branches.scalar_one_or_none() is None:
+            print("Aucun magasin trouvé, création des magasins initiaux...")
+            # Créer les magasins (Branches) en français
+            branch_ariana = Branch(name="Magasin Ariana", city="Ariana")
+            branch_nabeul = Branch(name="Magasin Nabeul", city="Nabeul")
+            session.add_all([branch_ariana, branch_nabeul])
+            await session.flush() # Important pour obtenir les IDs générés
+            print(f"Magasins créés: '{branch_ariana.name}' (ID={branch_ariana.id}), '{branch_nabeul.name}' (ID={branch_nabeul.id})")
+        else:
+            print("Magasins déjà présents, récupération des IDs...")
+            # Si les magasins existent, récupérer leurs IDs pour les assigner aux managers
+            res_ariana = await session.execute(select(Branch).where(Branch.name == "Magasin Ariana"))
+            branch_ariana = res_ariana.scalar_one_or_none()
+            res_nabeul = await session.execute(select(Branch).where(Branch.name == "Magasin Nabeul"))
+            branch_nabeul = res_nabeul.scalar_one_or_none()
 
-        # إنشاء المستخدمين الجدد
-        users = [
-            User(
-                email="zaher@local",
-                full_name="Zaher",
-                # FIX 5: "owner" is not a valid role. Use "admin"
-                role=Role.admin,
-                hashed_password=get_password_hash("zah1405")
-            ),
-            User(
-                email="ariana@local",
-                full_name="Ariana",
-                role=Role.manager,
-                hashed_password=get_password_hash("ar123")
-            ),
-            User(
-                email="nabeul@local",
-                full_name="Nabeul",
-                role=Role.manager,
-                hashed_password=get_password_hash("na123")
-            ),
-        ]
+            if not branch_ariana or not branch_nabeul:
+                print("ERREUR: Impossible de trouver les magasins 'Magasin Ariana' ou 'Magasin Nabeul'. Stoppé.")
+                return # Arrêter si on ne trouve pas les magasins attendus
 
-        session.add_all(users)
-        await session.commit()
-        print("✅ 3 users created successfully!")
+        # Vérifier si l'admin existe déjà
+        res_admin = await session.execute(select(User).where(User.email == "zaher@local"))
+        if res_admin.scalar_one_or_none() is None:
+            print("Admin 'zaher@local' non trouvé, création des utilisateurs initiaux...")
+            # Supprimer les anciens utilisateurs si l'admin n'existe pas (pour être sûr)
+            print("Suppression des anciens utilisateurs (si existants)...")
+            await session.execute(delete(User))
+            await session.flush()
+
+            # Créer les utilisateurs (Admin/Managers)
+            users_to_create = [
+                User(
+                    email="zaher@local",
+                    full_name="Zaher (Admin)",
+                    role=Role.admin, # Rôle admin
+                    hashed_password=hash_password("zah1405"), # Utiliser la bonne fonction
+                    is_active=True,
+                    branch_id=None # Admin n'est pas lié à un magasin
+                ),
+                User(
+                    email="ariana@local",
+                    full_name="Ariana (Manager)",
+                    role=Role.manager,
+                    hashed_password=hash_password("ar123"),
+                    is_active=True,
+                    branch_id=branch_ariana.id # Lié au Magasin Ariana
+                ),
+                User(
+                    email="nabeul@local",
+                    full_name="Nabeul (Manager)",
+                    role=Role.manager,
+                    hashed_password=hash_password("na123"),
+                    is_active=True,
+                    branch_id=branch_nabeul.id # Lié au Magasin Nabeul
+                ),
+            ]
+            session.add_all(users_to_create)
+            await session.commit()
+            print(f"✅ {len(users_to_create)} utilisateurs créés avec succès !")
+        else:
+            print("Utilisateur admin 'zaher@local' déjà présent. Seeding des utilisateurs ignoré.")
+
+        print("Script de seeding terminé.")
 
 if __name__ == "__main__":
-    # NOTE: This script must be moved to the ROOT folder (outside 'app/')
-    # to run correctly with 'python seed.py'
-    # If you keep it inside 'app/', you must run it with 'python -m app.seed'
-    # from the root folder.
+    # Ce script doit être exécuté depuis le dossier racine (hr-sync)
+    # avec la commande : python seed.py
+    # Assurez-vous que les variables d'environnement (DATABASE_URL) sont définies.
+    print("Lancement de la fonction seed asynchrone...")
     asyncio.run(seed())
+    print("Exécution terminée.")
