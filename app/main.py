@@ -23,7 +23,7 @@ from .db import engine, Base, AsyncSessionLocal
 from .auth import authenticate_user, create_access_token, hash_password # Ajout de hash_password pour le seeding
 # Importer tous les modèles, y compris Deposit
 from .models import Attendance, Branch, Deposit, Employee, Leave, User, Role
-from .audit import latest
+from .audit import latest, log
 # Importer tous les routeurs, y compris deposits
 from .routers import users, branches, employees, attendance, leaves, deposits
 
