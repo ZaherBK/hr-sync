@@ -14,10 +14,10 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
-from sqlalchemy import select
+from sqlalchemy import select, delete
 
-from .db import engine, Base, get_session
-from .auth import authenticate_user, create_access_token, get_current_user
+from .db import engine, Base, get_session, AsyncSessionLocal
+from .auth import authenticate_user, create_access_token, get_current_user, hash_password
 from .models import Attendance, Branch, Employee, Leave, User, Role
 from .audit import latest
 from .routers import users, branches, employees, attendance, leaves
@@ -46,10 +46,54 @@ app.add_middleware(SessionMiddleware, secret_key=os.getenv("SECRET_KEY", "change
 
 
 @app.on_event("startup")
+@app.on_event("startup")
 async def on_startup() -> None:
-    """Create database tables on application startup."""
+    """Create database tables and seed initial users."""
+    print("Running startup event...")
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        print("Database tables created.")
+
+    # --- ADDED SEEDING LOGIC ---
+    try:
+        async with AsyncSessionLocal() as session:
+            # Check if users already exist
+            res = await session.execute(select(User).where(User.email == "zaher@local"))
+            if res.scalar_one_or_none() is None:
+                # Users don't exist, so create them
+                print("Seeding initial users...")
+
+                # You might want to delete all users first to start clean
+                await session.execute(delete(User))
+
+                users = [
+                    User(
+                        email="zaher@local",
+                        full_name="Zaher",
+                        role=Role.admin,
+                        hashed_password=hash_password("zah1405")
+                    ),
+                    User(
+                        email="ariana@local",
+                        full_name="Ariana",
+                        role=Role.manager,
+                        hashed_password=hash_password("ar123")
+                    ),
+                    User(
+                        email="nabeul@local",
+                        full_name="Nabeul",
+                        role=Role.manager,
+                        hashed_password=hash_password("na123")
+                    ),
+                ]
+                session.add_all(users)
+                await session.commit()
+                print("✅ 3 users created successfully!")
+            else:
+                print("Users already exist. Skipping seed.")
+    except Exception as e:
+        print(f"Error during seeding: {e}")
+    # --- END OF SEEDING LOGIC ---
 
 
 def _get_user_from_session(request: Request) -> dict | None:
