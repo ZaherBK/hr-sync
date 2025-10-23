@@ -7,7 +7,7 @@ latest audit log entries for display on the dashboard.
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .models import AuditLog
+from .models import AuditLog, Role
 from .schemas import AuditOut
 
 
