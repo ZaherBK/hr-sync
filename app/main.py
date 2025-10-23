@@ -106,7 +106,7 @@ async def home(request: Request):
     user = _get_user_from_session(request)
     if not user:
         return RedirectResponse("/login")
-    async with get_session() as db:
+    async with AsyncSessionLocal() as db:
         activity = await latest(db)
     return templates.TemplateResponse(
         "dashboard.html",
@@ -129,7 +129,7 @@ async def login_page(request: Request):
 
 @app.post("/login")
 async def login_action(request: Request, username: str = Form(...), password: str = Form(...)):
-    async with get_session() as db:
+    async with AsyncSessionLocal() as db:
         user = await authenticate_user(db, username, password)
         if not user:
             return templates.TemplateResponse(
@@ -161,7 +161,7 @@ async def employees_page(request: Request):
     user = _get_user_from_session(request)
     if not user:
         return RedirectResponse("/login")
-    async with get_session() as db:
+    async with AsyncSessionLocal() as db:
         res = await db.execute(select(Employee))
         employees = res.scalars().all()
         resb = await db.execute(select(Branch))
@@ -189,7 +189,7 @@ async def employees_create(
     user = _get_user_from_session(request)
     if not user or user["role"] not in ("admin", "manager"):
         return RedirectResponse("/login")
-    async with get_session() as db:
+    async with AsyncSessionLocal() as db:
         db.add(
             Employee(
                 first_name=first_name,
@@ -207,7 +207,7 @@ async def attendance_page(request: Request):
     user = _get_user_from_session(request)
     if not user:
         return RedirectResponse("/login")
-    async with get_session() as db:
+    async with AsyncSessionLocal() as db:
         res = await db.execute(select(Employee))
         employees = res.scalars().all()
         resa = await db.execute(select(Attendance))
@@ -237,7 +237,7 @@ async def attendance_create(
         return RedirectResponse("/login")
     # Convert string date to date object
     day = dt_date.fromisoformat(date)
-    async with get_session() as db:
+    async with AsyncSessionLocal() as db:
         db.add(
             Attendance(
                 employee_id=int(employee_id),
@@ -256,7 +256,7 @@ async def leaves_page(request: Request):
     user = _get_user_from_session(request)
     if not user:
         return RedirectResponse("/login")
-    async with get_session() as db:
+    async with AsyncSessionLocal() as db:
         res = await db.execute(select(Employee))
         employees = res.scalars().all()
         resl = await db.execute(select(Leave))
@@ -288,7 +288,7 @@ async def leaves_create(
     ed = dt_date.fromisoformat(end_date)
     if ed < sd:
         raise HTTPException(status_code=400, detail="Invalid date range")
-    async with get_session() as db:
+    async with AsyncSessionLocal() as db:
         db.add(
             Leave(
                 employee_id=int(employee_id),
@@ -307,7 +307,7 @@ async def leaves_approve(leave_id: int, request: Request):
     user = _get_user_from_session(request)
     if not user or user["role"] not in ("admin", "manager"):
         return RedirectResponse("/login")
-    async with get_session() as db:
+    async with AsyncSessionLocal() as db:
         res = await db.execute(select(Leave).where(Leave.id == leave_id))
         lv = res.scalar_one_or_none()
         if lv:
