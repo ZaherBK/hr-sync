@@ -1,21 +1,87 @@
 <!doctype html>
-<html>
+<html lang="fr"> {# Langue définie en français #}
   <head>
     <meta charset="utf-8">
-    <title>{{ app_name }}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"> {# Important pour le responsive design #}
+    <title>{{ app_name }}</title> {# Titre dynamique de l'application #}
+    {# Lien vers Google Fonts - Police "Poppins" #}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    {# Lien vers Font Awesome pour les icônes #}
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" xintegrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    {# Lien vers notre feuille de style CSS personnalisée #}
     <link rel="stylesheet" href="/static/styles.css">
+    {# Ajout potentiel de CSS ou JS spécifiques à une page #}
+    {% block head_extra %}{% endblock %}
   </head>
   <body>
-    <nav>
-      <div>{{ app_name }}</div>
+    {# Barre de navigation supérieure #}
+    <nav class="navbar">
+      <div class="navbar-brand">{{ app_name }}</div>
       {% if user %}
-      <div>
-        {{ user.full_name }} ({{ user.role }})
+      {# Menu utilisateur si connecté #}
+      <div class="navbar-user">
+         <i class="fa-regular fa-user"></i>&nbsp; {# Icône utilisateur #}
+         {{ user.full_name }} ({{ user.role }}) {# Nom et rôle de l'utilisateur #}
+         &nbsp;|&nbsp;
+         <a href="{{ request.url_for('logout') }}" class="logout-link">
+            <i class="fa-solid fa-arrow-right-from-bracket"></i> Déconnexion {# Lien de déconnexion avec icône #}
+         </a>
       </div>
       {% endif %}
     </nav>
-    <div class="container">
-      {% block content %}{% endblock %}
+
+    {# Conteneur principal flexible (sidebar + contenu) #}
+    <div class="main-container">
+        {# Barre latérale de navigation (seulement si connecté) #}
+        {% if user %}
+        <aside class="sidebar">
+            <ul class="sidebar-menu">
+                <li>
+                    <a href="{{ request.url_for('home') }}" class="{{ 'active' if request.url.path == '/' else '' }}">
+                        <i class="fa-solid fa-chart-line"></i> Tableau de bord
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ request.url_for('employees_page') }}" class="{{ 'active' if 'employees' in request.url.path else '' }}">
+                        <i class="fa-solid fa-users"></i> Employés
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ request.url_for('attendance_page') }}" class="{{ 'active' if 'attendance' in request.url.path else '' }}">
+                        <i class="fa-regular fa-calendar-check"></i> Présences
+                    </a>
+                </li>
+                 {# NOUVEAU LIEN : Avances - Visible par admin et manager #}
+                 {% if user.role in ['admin', 'manager'] %}
+                 <li>
+                    <a href="{{ request.url_for('deposits_page') }}" class="{{ 'active' if 'deposits' in request.url.path else '' }}">
+                        <i class="fa-solid fa-money-bill-transfer"></i> Avances {# Icône pour avances/dépôts #}
+                    </a>
+                 </li>
+                 {% endif %}
+                 {# LIEN MODIFIÉ : Congés - Visible seulement par admin #}
+                 {% if user.role == 'admin' %}
+                 <li>
+                    <a href="{{ request.url_for('leaves_page') }}" class="{{ 'active' if 'leaves' in request.url.path else '' }}">
+                        <i class="fa-solid fa-umbrella-beach"></i> Congés {# Icône pour congés/vacances #}
+                    </a>
+                 </li>
+                 {% endif %}
+                {# Ajouter d'autres liens ici si nécessaire, ex: Magasins (Branches) pour Admin #}
+            </ul>
+        </aside>
+        {% endif %}
+
+        {# Zone de contenu principal #}
+        <main class="content {% if not user %}content-full-width{% endif %}">
+            {# Le contenu spécifique à chaque page sera injecté ici #}
+            {% block content %}{% endblock %}
+        </main>
     </div>
+
+    {# Ajout potentiel de JS global en fin de body #}
+    {% block body_extra %}{% endblock %}
   </body>
 </html>
