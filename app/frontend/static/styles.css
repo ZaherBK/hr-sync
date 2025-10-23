@@ -1,8 +1,447 @@
-body { font-family: system-ui, Arial, sans-serif; margin:0; background:#f7f7f9; }
-nav { background:#111827; color:white; padding:12px 20px; display:flex; justify-content:space-between; align-items:center; }
-a, button { cursor:pointer; }
-.container { max-width: 1100px; margin: 24px auto; background:white; padding:20px; border-radius:10px; box-shadow:0 2px 10px rgba(0,0,0,.05); }
-table { width:100%; border-collapse: collapse; }
-th, td { padding:10px; border-bottom:1px solid #eee; text-align:left; }
-input, select { padding:8px; width:100%; box-sizing:border-box; }
-.form-row { display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
+/* --- Réinitialisation et Base --- */
+*, *::before, *::after {
+  box-sizing: border-box; /* Inclure padding/border dans la taille */
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Poppins', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; /* Police Poppins avec alternatives */
+  background-color: #f8f9fa; /* Fond gris très clair */
+  color: #343a40; /* Couleur de texte principale foncée */
+  line-height: 1.6;
+  font-size: 15px; /* Taille de police de base */
+}
+
+a {
+  color: #4a5fa2; /* Couleur des liens */
+  text-decoration: none; /* Pas de soulignement par défaut */
+  transition: color 0.2s ease;
+}
+
+a:hover {
+  color: #3b4c8a; /* Assombrir au survol */
+  text-decoration: underline; /* Souligner au survol */
+}
+
+/* --- Barre de Navigation Supérieure (Navbar) --- */
+.navbar {
+  background-color: #ffffff; /* Fond blanc */
+  color: #343a40;
+  padding: 12px 30px; /* Padding horizontal augmenté */
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); /* Ombre subtile */
+  border-bottom: 1px solid #e9ecef; /* Ligne fine en bas */
+  position: sticky; /* Reste en haut */
+  top: 0;
+  z-index: 1000;
+}
+
+.navbar-brand {
+  font-size: 1.4em;
+  font-weight: 600; /* Semi-gras */
+  color: #4a5fa2; /* Couleur marque */
+}
+
+.navbar-user {
+  display: flex;
+  align-items: center;
+  font-size: 0.95em;
+  color: #6c757d; /* Gris pour le nom */
+}
+
+.navbar-user i {
+  color: #adb5bd; /* Icônes gris clair */
+  margin-right: 5px;
+}
+
+.logout-link {
+  color: #dc3545; /* Rouge pour déconnexion */
+  font-weight: 500;
+  margin-left: 15px;
+  display: inline-flex; /* Aligner icône et texte */
+  align-items: center;
+  gap: 5px;
+}
+
+.logout-link:hover {
+  color: #c82333; /* Rouge plus foncé */
+  text-decoration: none;
+}
+
+/* --- Conteneur Principal (Sidebar + Contenu) --- */
+.main-container {
+  display: flex;
+  min-height: calc(100vh - 60px); /* Hauteur min = écran - hauteur navbar approx */
+}
+
+/* --- Barre Latérale (Sidebar) --- */
+.sidebar {
+  width: 240px; /* Largeur de la sidebar */
+  background-color: #343a40; /* Fond sombre */
+  color: #f8f9fa; /* Texte clair */
+  padding-top: 20px;
+  flex-shrink: 0; /* Ne pas rétrécir */
+  transition: width 0.3s ease; /* Animation si on la cache/montre */
+}
+
+.sidebar-menu {
+  list-style: none; /* Pas de puces */
+}
+
+.sidebar-menu li a {
+  display: flex; /* Aligner icône et texte */
+  align-items: center;
+  gap: 12px; /* Espace entre icône et texte */
+  padding: 12px 20px; /* Padding interne */
+  color: #ced4da; /* Couleur texte lien */
+  font-size: 0.95em;
+  font-weight: 500; /* Semi-gras */
+  border-left: 3px solid transparent; /* Bordure pour lien actif */
+  transition: background-color 0.2s ease, color 0.2s ease, border-left-color 0.2s ease;
+}
+
+.sidebar-menu li a:hover {
+  background-color: #495057; /* Fond gris foncé au survol */
+  color: #ffffff; /* Texte blanc au survol */
+  text-decoration: none;
+}
+
+.sidebar-menu li a.active {
+  background-color: #495057;
+  color: #ffffff;
+  border-left-color: #4a5fa2; /* Bordure bleue pour lien actif */
+}
+
+.sidebar-menu li a i {
+  width: 20px; /* Largeur fixe pour alignement des icônes */
+  text-align: center;
+  color: #adb5bd; /* Couleur icônes par défaut */
+  transition: color 0.2s ease;
+}
+
+.sidebar-menu li a:hover i,
+.sidebar-menu li a.active i {
+  color: #ffffff; /* Icônes blanches au survol/actif */
+}
+
+
+/* --- Zone de Contenu Principal --- */
+.content {
+  flex-grow: 1; /* Prend l'espace restant */
+  padding: 30px; /* Padding généreux */
+  background-color: #f8f9fa; /* Fond gris très clair */
+  overflow-y: auto; /* Permet le scroll si contenu dépasse */
+}
+/* Si pas de sidebar (page de login) */
+.content-full-width {
+    padding: 0; /* Pas de padding sur le body pour la page de login */
+    background-color: #f0f2f5; /* Fond spécifique login */
+}
+
+.page-title {
+  font-size: 1.8em;
+  font-weight: 600;
+  color: #343a40;
+  margin-bottom: 25px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid #dee2e6; /* Ligne sous le titre */
+  padding-bottom: 10px;
+}
+
+.page-title i {
+  color: #4a5fa2; /* Couleur icône titre */
+}
+
+/* --- Cartes (Cards) --- */
+.card {
+  background: #ffffff; /* Fond blanc */
+  border-radius: 8px; /* Coins arrondis */
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.03); /* Ombre très subtile */
+  margin-bottom: 30px; /* Espace entre les cartes */
+  padding: 25px; /* Padding interne */
+  border: 1px solid #e9ecef; /* Bordure légère */
+}
+
+.card h3 {
+  font-size: 1.25em;
+  font-weight: 600;
+  color: #495057;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid #f1f3f5;
+  padding-bottom: 10px;
+}
+.card h3 i {
+    color: #6c757d;
+}
+
+/* --- Formulaires --- */
+.form-card {
+    /* Styles spécifiques pour les cartes formulaire si nécessaire */
+}
+
+.form-row {
+  display: grid;
+  /* Par défaut 2 colonnes, mais s'adapte sur petits écrans */
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px; /* Espace entre les champs */
+  margin-bottom: 15px; /* Espace entre les lignes */
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column; /* Label au-dessus du champ */
+}
+.form-group.full-width {
+    grid-column: 1 / -1; /* Prend toute la largeur de la grille */
+}
+
+
+label {
+  margin-bottom: 6px; /* Espace sous le label */
+  font-size: 0.9em;
+  font-weight: 500;
+  color: #495057;
+}
+
+input[type="text"],
+input[type="date"],
+input[type="password"],
+input[type="number"], /* Ajout pour montant si besoin */
+select {
+  padding: 10px 12px;
+  width: 100%;
+  border-radius: 6px;
+  border: 1px solid #ced4da;
+  background-color: #ffffff;
+  font-size: 0.95em;
+  color: #495057;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+input::placeholder {
+    color: #adb5bd;
+    font-size: 0.9em;
+}
+
+input:focus, select:focus {
+  outline: none;
+  border-color: #8c9ac2; /* Couleur bordure focus */
+  box-shadow: 0 0 0 3px rgba(74, 95, 162, 0.15); /* Ombre focus */
+}
+
+/* Style spécifique pour select */
+select {
+    appearance: none; /* Enlève style par défaut */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3E%3C/svg%3E"); /* Flèche SVG */
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 1em;
+    padding-right: 35px; /* Espace pour la flèche */
+}
+
+.form-actions {
+  margin-top: 25px; /* Espace au-dessus des boutons */
+  display: flex;
+  justify-content: flex-end; /* Boutons à droite */
+  gap: 10px; /* Espace entre boutons si plusieurs */
+}
+
+/* --- Boutons --- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  font-size: 0.95em;
+  font-weight: 500;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.1s ease, box-shadow 0.2s ease;
+  white-space: nowrap; /* Empêche le retour à la ligne */
+}
+.btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+.btn:active {
+    transform: translateY(0);
+    box-shadow: none;
+}
+
+.btn-primary { background-color: #4a5fa2; color: #fff; }
+.btn-primary:hover { background-color: #3b4c8a; }
+
+.btn-secondary { background-color: #6c757d; color: #fff; }
+.btn-secondary:hover { background-color: #5a6268; }
+
+.btn-success { background-color: #28a745; color: #fff; }
+.btn-success:hover { background-color: #218838; }
+
+.btn-danger { background-color: #dc3545; color: #fff; }
+.btn-danger:hover { background-color: #c82333; }
+
+.btn-sm { /* Bouton plus petit */
+    padding: 6px 12px;
+    font-size: 0.85em;
+}
+
+/* --- Tableaux --- */
+.table-card {
+    padding: 0; /* Enlever padding pour que le tableau colle aux bords */
+}
+.table-card h3 {
+    padding: 20px 25px 15px 25px; /* Padding juste pour le titre */
+    margin-bottom: 0;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.table-responsive {
+    overflow-x: auto; /* Scroll horizontal si tableau trop large */
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse; /* Fusionner les bordures */
+  margin-top: 0; /* Enlever marge si dans .table-card */
+}
+
+th, td {
+  padding: 12px 15px; /* Padding cellules */
+  border-bottom: 1px solid #e9ecef; /* Ligne séparatrice */
+  text-align: left; /* Alignement gauche */
+  vertical-align: middle; /* Alignement vertical */
+  font-size: 0.95em;
+  white-space: nowrap; /* Éviter retour à la ligne par défaut */
+}
+
+th {
+  background-color: #f8f9fa; /* Fond léger pour entêtes */
+  font-weight: 600; /* Texte entête semi-gras */
+  color: #495057;
+  white-space: nowrap;
+}
+
+tbody tr:hover {
+  background-color: #f1f3f5; /* Fond léger au survol */
+}
+
+/* Styles spécifiques pour certaines colonnes */
+td.timestamp, td.amount {
+    font-size: 0.9em;
+    color: #6c757d;
+    white-space: nowrap;
+}
+td.amount {
+    text-align: right; /* Aligner montants à droite */
+    font-family: monospace; /* Police à chasse fixe pour chiffres */
+}
+td.details {
+    white-space: normal; /* Permettre retour à la ligne pour détails */
+    max-width: 300px; /* Limiter largeur détails */
+    overflow: hidden;
+    text-overflow: ellipsis; /* Ajouter ... si trop long */
+}
+
+/* --- Badges (Statuts, Types) --- */
+.badge {
+  display: inline-block;
+  padding: 4px 8px;
+  font-size: 0.8em;
+  font-weight: 600;
+  border-radius: 4px;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+/* Statuts Employé */
+.status-active { background-color: #d1e7dd; color: #0f5132; border: 1px solid #a3cfbb;}
+.status-inactive { background-color: #f8d7da; color: #842029; border: 1px solid #f1aeb5;}
+
+/* Statuts Présence */
+.status-present { background-color: #cff4fc; color: #055160; border: 1px solid #9eeaf9;}
+.status-absent { background-color: #fff3cd; color: #664d03; border: 1px solid #ffe69c;}
+
+/* Statuts Congé */
+.status-approved { background-color: #d1e7dd; color: #0f5132; border: 1px solid #a3cfbb;}
+.status-pending { background-color: #fff3cd; color: #664d03; border: 1px solid #ffe69c;}
+
+/* Types Congé */
+.ltype-paid { background-color: #cfe2ff; color: #0a58ca; border: 1px solid #a9cbfd;}
+.ltype-unpaid { background-color: #e2e3e5; color: #495057; border: 1px solid #cdd1d5;}
+.ltype-sick { background-color: #f8d7da; color: #842029; border: 1px solid #f1aeb5;}
+
+/* Action Audit */
+.action-create { background-color: #d1e7dd; color: #0f5132; }
+.action-approve { background-color: #cfe2ff; color: #0a58ca; }
+/* Ajouter .action-update, .action-delete etc. si besoin */
+
+/* --- Autres --- */
+.quick-links { margin-bottom: 30px; }
+.quick-links h3 { font-size: 1.1em; margin-bottom: 15px; color: #495057; }
+.link-buttons { display: flex; flex-wrap: wrap; gap: 15px; } /* Boutons côte à côte */
+
+.no-data {
+    text-align: center;
+    color: #6c757d;
+    padding: 40px 20px;
+    font-style: italic;
+}
+
+/* --- Responsive Design (Media Queries) --- */
+@media (max-width: 768px) {
+  .sidebar {
+    /* Cache la sidebar par défaut sur mobile, prévoir un bouton pour la montrer */
+    width: 0;
+    overflow: hidden;
+    padding-top: 0;
+  }
+  .content {
+    padding: 20px; /* Moins de padding sur mobile */
+  }
+  .page-title {
+    font-size: 1.5em;
+    margin-bottom: 20px;
+  }
+  .form-row {
+    grid-template-columns: 1fr; /* Une seule colonne sur mobile */
+    gap: 15px;
+  }
+  .navbar {
+      padding: 10px 15px;
+  }
+  .navbar-brand {
+      font-size: 1.2em;
+  }
+  .navbar-user {
+      font-size: 0.9em;
+  }
+  .link-buttons {
+      flex-direction: column; /* Boutons l'un sous l'autre */
+      align-items: flex-start;
+  }
+  .btn {
+      width: 100%; /* Boutons pleine largeur */
+      justify-content: center; /* Centrer texte/icône */
+  }
+  .form-actions {
+      justify-content: center; /* Centrer boutons formulaire */
+  }
+  .table-responsive {
+        /* Pas de changements spécifiques, le scroll horizontal fonctionne */
+  }
+  th, td {
+      padding: 10px 8px; /* Moins de padding */
+      font-size: 0.9em; /* Texte plus petit */
+      /* white-space: normal; /* Permettre retour à la ligne si besoin */
+  }
+}
+
+/* Ajouter d'autres points de rupture si nécessaire (tablettes, etc.) */
