@@ -1,47 +1,95 @@
 {% extends "base.html" %}
-{% block content %}
-<h2>Attendance</h2>
-<form method="post" action="/attendance/create">
-  <div class="form-row">
-    <div>
-      <label>Employee</label>
-      <select name="employee_id">
-        {% for e in employees %}
-        <option value="{{ e.id }}">{{ e.first_name }} {{ e.last_name }} ({{ e.branch_id }})</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div>
-      <label>Date</label>
-      <input type="date" name="date" required>
-    </div>
-  </div>
-  <div class="form-row">
-    <div>
-      <label>Type</label>
-      <select name="atype">
-        <option value="present">Present</option>
-        <option value="absent">Absent</option>
-      </select>
-    </div>
-    <div>
-      <label>Note</label>
-      <input name="note">
-    </div>
-  </div>
-  <p><button>Save</button></p>
-</form>
 
-<table>
-  <tr><th>#</th><th>Employee</th><th>Date</th><th>Type</th><th>Note</th></tr>
-  {% for a in attendance %}
-  <tr>
-    <td>{{ a.id }}</td>
-    <td>{{ a.employee_id }}</td>
-    <td>{{ a.date }}</td>
-    <td>{{ a.atype }}</td>
-    <td>{{ a.note or '' }}</td>
-  </tr>
-  {% endfor %}
-</table>
+{% block content %}
+<h2 class="page-title"><i class="fa-regular fa-calendar-check"></i> Gestion des Présences</h2>
+
+{# Formulaire de saisie de présence #}
+<div class="card form-card">
+    <h3><i class="fa-solid fa-user-clock"></i> Marquer la Présence</h3>
+    <form method="post" action="{{ request.url_for('attendance_create') }}">
+      <div class="form-row">
+        <div class="form-group">
+          <label for="employee_id">Employé</label>
+          <select id="employee_id" name="employee_id" required>
+             <option value="" disabled selected>-- Choisir un employé --</option>
+            {% for e in employees %} {# Afficher seulement les employés pertinents (filtrés dans main.py) #}
+            <option value="{{ e.id }}">{{ e.first_name }} {{ e.last_name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="date">Date</label>
+          <input type="date" id="date" name="date" required value="{{ ''|date('Y-m-d') }}"> {# Pré-remplir avec la date du jour #}
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="atype">Type</label>
+          <select id="atype" name="atype" required>
+            <option value="present">Présent</option>
+            <option value="absent">Absent</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="note">Note (Optionnel)</label>
+          <input type="text" id="note" name="note" placeholder="Ex: Retard, Maladie...">
+        </div>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-success">
+            <i class="fa-solid fa-save"></i> Enregistrer
+        </button>
+      </div>
+    </form>
+</div>
+
+{# Tableau des présences récentes #}
+<div class="card table-card">
+    <h3><i class="fa-solid fa-list-ul"></i> Présences Récentes</h3>
+    {% if attendance %}
+    <div class="table-responsive">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Employé</th> {# Afficher le nom serait mieux #}
+              <th>Date</th>
+              <th>Type</th>
+              <th>Note</th>
+              <th>Enregistré le</th> {# Date de création de l'enregistrement #}
+            </tr>
+           </thead>
+           <tbody>
+            {% for a in attendance %}
+            <tr>
+              <td>{{ a.id }}</td>
+              <td>
+                  {# Essayer d'afficher le nom de l'employé #}
+                  {% set found_employee = namespace(name='ID: ' ~ a.employee_id) %}
+                  {% for e in employees %}
+                      {% if e.id == a.employee_id %}
+                          {% set found_employee.name = e.first_name ~ ' ' ~ e.last_name %}
+                      {% endif %}
+                  {% endfor %}
+                  {{ found_employee.name }}
+              </td>
+              <td>{{ a.date.strftime('%Y-%m-%d') }}</td>
+              <td>
+                  {% if a.atype == 'present' %}
+                      <span class="badge status-present">Présent</span>
+                  {% else %}
+                      <span class="badge status-absent">Absent</span>
+                  {% endif %}
+              </td>
+              <td>{{ a.note or '-' }}</td>
+              <td class="timestamp">{{ a.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+            </tr>
+            {% endfor %}
+           </tbody>
+        </table>
+    </div>
+    {% else %}
+        <p class="no-data">Aucun enregistrement de présence à afficher.</p>
+    {% endif %}
+</div>
 {% endblock %}
