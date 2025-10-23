@@ -1,42 +1,146 @@
 <!doctype html>
-<html lang="en">
+<html lang="fr"> {# Langue française #}
   <head>
     <meta charset="utf-8" />
-    <title>HR Sync – Login</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ app_name }} – Connexion</title> {# Titre dynamique #}
+    {# Police Poppins #}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+    {# Font Awesome #}
+     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" xintegrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    {# Styles spécifiques à la page de connexion #}
     <style>
-      body{background:#111;color:#eee;font-family:Segoe UI,Arial,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}
-      .card{background:#1c1c1c;border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.45);padding:28px 34px;width:560px}
-      .title{font-size:26px;margin:0 0 18px 0;letter-spacing:.5px}
-      .row{display:flex;gap:16px}
-      label{display:block;margin:10px 0 6px 2px;font-size:13px;color:#bfbfbf}
-      select,input[type=password]{width:100%;padding:12px 14px;border-radius:10px;border:1px solid #333;background:#121212;color:#fff;outline:none}
-      .actions{margin-top:18px;display:flex;justify-content:flex-end}
-      button{background:#e2b13c;border:none;color:#111;font-weight:700;padding:10px 18px;border-radius:10px;cursor:pointer}
-      button:hover{filter:brightness(1.05)}
+      body {
+        background-color: #f0f2f5; /* Fond gris clair */
+        color: #333;
+        font-family: 'Poppins', sans-serif;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        margin: 0;
+        line-height: 1.6;
+      }
+      .login-card {
+        background: #ffffff; /* Fond blanc */
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        padding: 35px 40px;
+        width: 100%;
+        max-width: 450px; /* Largeur max de la carte */
+        box-sizing: border-box;
+      }
+      .login-title {
+        font-size: 24px; /* Taille du titre */
+        font-weight: 600; /* Titre en gras */
+        margin: 0 0 25px 0; /* Marge en bas */
+        text-align: center; /* Titre centré */
+        color: #1a202c; /* Couleur foncée pour le titre */
+      }
+      .form-group {
+        margin-bottom: 20px; /* Espace entre les groupes de formulaire */
+      }
+      label {
+        display: block;
+        margin-bottom: 8px; /* Espace sous le label */
+        font-size: 14px;
+        font-weight: 500; /* Label semi-gras */
+        color: #4a5568; /* Couleur gris moyen */
+      }
+      select, input[type=password] {
+        width: 100%;
+        padding: 12px 15px; /* Padding interne */
+        border-radius: 8px; /* Coins arrondis */
+        border: 1px solid #cbd5e0; /* Bordure grise légère */
+        background: #f7fafc; /* Fond très léger */
+        color: #2d3748; /* Couleur de texte foncée */
+        font-size: 15px;
+        box-sizing: border-box; /* Inclure padding et bordure dans la largeur */
+        transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+      }
+      select:focus, input[type=password]:focus {
+        outline: none; /* Pas de contour par défaut */
+        border-color: #4a5fa2; /* Bordure bleue au focus */
+        box-shadow: 0 0 0 3px rgba(74, 95, 162, 0.2); /* Ombre douce au focus */
+      }
+      .login-actions {
+        margin-top: 30px; /* Espace au-dessus du bouton */
+        display: flex; /* Utiliser flexbox */
+        justify-content: center; /* Centrer le bouton */
+      }
+      button {
+        background: #4a5fa2; /* Couleur principale bleue */
+        border: none;
+        color: #ffffff; /* Texte blanc */
+        font-weight: 600; /* Texte en gras */
+        padding: 12px 30px; /* Padding généreux */
+        border-radius: 8px; /* Coins arrondis */
+        cursor: pointer; /* Curseur main */
+        font-size: 16px;
+        transition: background-color 0.2s ease-in-out, transform 0.1s ease;
+        display: inline-flex; /* Pour aligner icône et texte */
+        align-items: center;
+        gap: 8px; /* Espace entre icône et texte */
+      }
+      button:hover {
+        background-color: #3b4c8a; /* Bleu plus foncé au survol */
+        transform: translateY(-1px); /* Léger effet de soulèvement */
+      }
+      button:active {
+           transform: translateY(0px); /* Retour à la position initiale au clic */
+      }
+      .error-message {
+        background-color: #fed7d7; /* Fond rouge léger */
+        color: #c53030; /* Texte rouge foncé */
+        padding: 12px 15px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        font-size: 14px;
+        text-align: center;
+        border: 1px solid #f56565; /* Bordure rouge */
+      }
     </style>
   </head>
   <body>
-    <form class="card" method="post" action="/login">
-      <h1 class="title">Connexion</h1>
+    {# La carte de connexion utilise method="post" et l'action "/login" définie dans main.py #}
+    <form class="login-card" method="post" action="{{ request.url_for('login_action') }}">
+      <h1 class="login-title">{{ app_name }} - Connexion</h1>
 
-      <div class="row">
-        <div style="flex:1">
-          <label>Utilisateur</label>
-          <!-- IMPORTANT: القيم value هي 'username' اللي الباك-إند يتعامل معاها كبريد -->
-          <select name="username" required>
-            <option value="zaher@local">ZAHER (Admin)</option>
-            <option value="ariana@local">ARIANA (Manager)</option>
-            <option value="nabeul@local">NABEUL (Manager)</option>
-          </select>
-        </div>
-        <div style="flex:1">
-          <label>Mot de passe</label>
-          <input type="password" name="password" required />
-        </div>
+      {# Afficher un message d'erreur si présent #}
+      {% if error %}
+          <div class="error-message">
+              <i class="fa-solid fa-circle-exclamation"></i> {{ error }}
+          </div>
+      {% endif %}
+
+      {# Groupe pour l'utilisateur #}
+      <div class="form-group">
+        <label for="username">Utilisateur</label>
+        {# Le name="username" correspond à ce qui est attendu par FastAPI (OAuth2PasswordRequestForm) #}
+        <select id="username" name="username" required>
+          <option value="" disabled selected>-- Sélectionnez votre compte --</option>
+          {# Mettre à jour les textes pour correspondre aux rôles/noms réels #}
+          <option value="zaher@local">ZAHER (Admin)</option>
+          <option value="ariana@local">ARIANA (Manager)</option>
+          <option value="nabeul@local">NABEUL (Manager)</option>
+          {# Ajouter d'autres utilisateurs ici si nécessaire #}
+        </select>
       </div>
 
-      <div class="actions">
-        <button type="submit">Sign in</button>
+      {# Groupe pour le mot de passe #}
+      <div class="form-group">
+        <label for="password">Mot de passe</label>
+        {# Le name="password" correspond aussi à OAuth2PasswordRequestForm #}
+        <input type="password" id="password" name="password" required />
+      </div>
+
+      {# Section pour le bouton de connexion #}
+      <div class="login-actions">
+        <button type="submit">
+            <i class="fa-solid fa-right-to-bracket"></i> Se connecter
+        </button>
       </div>
     </form>
   </body>
