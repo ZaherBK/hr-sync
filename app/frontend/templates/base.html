@@ -10,7 +10,7 @@
       <div>{{ app_name }}</div>
       {% if user %}
       <div>
-        {{ user.full_name }} ({{ user.role.value if user.role else user.role }})
+        {{ user.full_name }} ({{ user.role }})
       </div>
       {% endif %}
     </nav>

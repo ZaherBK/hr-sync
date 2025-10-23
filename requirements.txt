@@ -6,7 +6,10 @@ passlib[bcrypt]==1.7.4
 python-jose==3.3.0
 python-multipart==0.0.9
 jinja2==3.1.4
+email-validator==2.2.0
 
-# Additional dependencies for async postgres and sessions
+# Async Postgres driver
 asyncpg==0.29.0
+
+# For forms/csrf or misc if تحتاجها
 itsdangerous==2.2.0

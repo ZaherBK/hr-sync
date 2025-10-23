@@ -105,7 +105,7 @@ async def login_action(request: Request, username: str = Form(...), password: st
             "id": user.id,
             "email": user.email,
             "full_name": user.full_name,
-            "role": user.role,
+            "role": user.role.value,
             "branch_id": user.branch_id,
             "token": token,
         }

@@ -37,7 +37,7 @@
     <td>{{ l.ltype }}</td>
     <td>{{ "✓" if l.approved else "–" }}</td>
     <td>
-      {% if not l.approved and user.role.value != 'staff' %}
+      {% if not l.approved and user.role != 'staff' %}
       <form method="post" action="/leaves/{{ l.id }}/approve">
         <button>Approve</button>
       </form>
