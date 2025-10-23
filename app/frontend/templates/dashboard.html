@@ -1,22 +1,66 @@
-{% extends "base.html" %}
-{% block content %}
-<h2>Dashboard</h2>
-<p>Quick links:</p>
-<p>
-  <a href="/employees">Employees</a> |
-  <a href="/attendance">Attendance</a> |
-  <a href="/leaves">Leaves</a>
-</p>
-<h3>Latest activity</h3>
-<table>
-  <tr><th>When</th><th>Action</th><th>Entity</th><th>Details</th></tr>
-  {% for a in activity %}
-  <tr>
-    <td>{{ a.created_at }}</td>
-    <td>{{ a.action }}</td>
-    <td>{{ a.entity }}{% if a.entity_id %} #{{ a.entity_id }}{% endif %}</td>
-    <td>{{ a.details or '' }}</td>
-  </tr>
-  {% endfor %}
-</table>
+{% extends "base.html" %} {# Hérite du template de base #}
+
+{% block content %} {# Bloc de contenu spécifique à cette page #}
+<h2 class="page-title"><i class="fa-solid fa-chart-line"></i> Tableau de bord</h2>
+
+<p>Bienvenue, {{ user.full_name }} !</p>
+
+{# Section des liens rapides #}
+<div class="quick-links">
+  <h3>Accès Rapide</h3>
+  <div class="link-buttons">
+    <a href="{{ request.url_for('employees_page') }}" class="btn btn-primary">
+        <i class="fa-solid fa-users"></i> Gérer les Employés
+    </a>
+    <a href="{{ request.url_for('attendance_page') }}" class="btn btn-secondary">
+        <i class="fa-regular fa-calendar-check"></i> Gérer les Présences
+    </a>
+     {# NOUVEAU LIEN : Avances - Admin & Manager #}
+     {% if user.role in ['admin', 'manager'] %}
+    <a href="{{ request.url_for('deposits_page') }}" class="btn btn-secondary">
+        <i class="fa-solid fa-money-bill-transfer"></i> Gérer les Avances
+    </a>
+    {% endif %}
+     {# LIEN MODIFIÉ : Congés - Admin seulement #}
+     {% if user.role == 'admin' %}
+    <a href="{{ request.url_for('leaves_page') }}" class="btn btn-secondary">
+        <i class="fa-solid fa-umbrella-beach"></i> Gérer les Congés
+    </a>
+    {% endif %}
+    {# Ajouter d'autres boutons si nécessaire #}
+  </div>
+</div>
+
+{# Section de l'activité récente #}
+<div class="activity-log">
+  <h3>Activité Récente</h3>
+  {% if activity %}
+  <div class="table-responsive">
+    <table>
+      <thead>
+        <tr>
+          <th>Quand</th>
+          <th>Action</th>
+          <th>Entité</th>
+          <th>Détails</th>
+          {#<th>Par Qui</th> #} {# Optionnel: Ajouter si utile #}
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in activity %}
+        <tr>
+          <td class="timestamp">{{ a.created_at.strftime('%Y-%m-%d %H:%M') }}</td> {# Formater la date #}
+          <td><span class="badge action-{{ a.action }}">{{ a.action }}</span></td> {# Badge pour l'action #}
+          <td>{{ a.entity }}{% if a.entity_id %} #{{ a.entity_id }}{% endif %}</td>
+          <td class="details">{{ a.details or '-' }}</td> {# Afficher '-' si pas de détails #}
+          {#<td>{{ a.actor_id }}</td> #} {# Afficher l'ID de l'acteur si besoin #}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+    <p class="no-data">Aucune activité récente à afficher.</p>
+  {% endif %}
+</div>
 {% endblock %}
