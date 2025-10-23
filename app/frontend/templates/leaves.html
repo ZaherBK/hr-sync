@@ -1,49 +1,115 @@
 {% extends "base.html" %}
-{% block content %}
-<h2>Leaves</h2>
-<form method="post" action="/leaves/create">
-  <div class="form-row">
-    <div>
-      <label>Employee</label>
-      <select name="employee_id">
-        {% for e in employees %}
-        <option value="{{ e.id }}">{{ e.first_name }} {{ e.last_name }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div><label>Start</label><input type="date" name="start_date" required></div>
-  </div>
-  <div class="form-row">
-    <div><label>End</label><input type="date" name="end_date" required></div>
-    <div>
-      <label>Type</label>
-      <select name="ltype">
-        <option value="paid">Paid</option>
-        <option value="unpaid">Unpaid</option>
-        <option value="sick">Sick</option>
-      </select>
-    </div>
-  </div>
-  <p><button>Request leave</button></p>
-</form>
 
-<table>
-  <tr><th>#</th><th>Employee</th><th>Dates</th><th>Type</th><th>Approved</th><th></th></tr>
-  {% for l in leaves %}
-  <tr>
-    <td>{{ l.id }}</td>
-    <td>{{ l.employee_id }}</td>
-    <td>{{ l.start_date }} → {{ l.end_date }}</td>
-    <td>{{ l.ltype }}</td>
-    <td>{{ "✓" if l.approved else "–" }}</td>
-    <td>
-      {% if not l.approved and user.role != 'staff' %}
-      <form method="post" action="/leaves/{{ l.id }}/approve">
-        <button>Approve</button>
-      </form>
-      {% endif %}
-    </td>
-  </tr>
-  {% endfor %}
-</table>
+{# Accessible seulement par l'admin (vérifié dans main.py) #}
+
+{% block content %}
+<h2 class="page-title"><i class="fa-solid fa-umbrella-beach"></i> Gestion des Congés</h2>
+
+{# Formulaire de demande de congé #}
+<div class="card form-card">
+    <h3><i class="fa-solid fa-plus"></i> Demander un Congé</h3>
+    <form method="post" action="{{ request.url_for('leaves_create') }}">
+      <div class="form-row">
+        <div class="form-group">
+          <label for="employee_id">Employé</label>
+          <select id="employee_id" name="employee_id" required>
+            <option value="" disabled selected>-- Choisir un employé --</option>
+            {% for e in employees %} {# Admin voit tous les employés actifs #}
+            <option value="{{ e.id }}">{{ e.first_name }} {{ e.last_name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+         <div class="form-group">
+          <label for="ltype">Type de Congé</label>
+          <select id="ltype" name="ltype" required>
+            <option value="paid">Payé</option>
+            <option value="unpaid">Non Payé</option>
+            <option value="sick">Maladie</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="start_date">Date de Début</label>
+          <input type="date" id="start_date" name="start_date" required>
+        </div>
+        <div class="form-group">
+          <label for="end_date">Date de Fin</label>
+          <input type="date" id="end_date" name="end_date" required>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">
+            <i class="fa-solid fa-paper-plane"></i> Soumettre la Demande
+        </button>
+      </div>
+    </form>
+</div>
+
+{# Tableau des demandes de congé #}
+<div class="card table-card">
+    <h3><i class="fa-solid fa-list-ul"></i> Demandes de Congé</h3>
+    {% if leaves %}
+    <div class="table-responsive">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Employé</th>
+              <th>Dates</th>
+              <th>Type</th>
+              <th>Statut</th>
+              <th>Action</th> {# Colonne pour le bouton d'approbation #}
+            </tr>
+          </thead>
+          <tbody>
+            {% for l in leaves %}
+            <tr>
+              <td>{{ l.id }}</td>
+              <td>
+                {# Afficher le nom de l'employé #}
+                {% set found_employee = namespace(name='ID: ' ~ l.employee_id) %}
+                {% for e in employees %}
+                    {% if e.id == l.employee_id %}
+                        {% set found_employee.name = e.first_name ~ ' ' ~ e.last_name %}
+                    {% endif %}
+                {% endfor %}
+                {{ found_employee.name }}
+              </td>
+              <td>{{ l.start_date.strftime('%Y-%m-%d') }} → {{ l.end_date.strftime('%Y-%m-%d') }}</td>
+              <td>
+                  {% if l.ltype == 'paid' %}<span class="badge ltype-paid">Payé</span>
+                  {% elif l.ltype == 'unpaid' %}<span class="badge ltype-unpaid">Non Payé</span>
+                  {% elif l.ltype == 'sick' %}<span class="badge ltype-sick">Maladie</span>
+                  {% else %}{{ l.ltype }}
+                  {% endif %}
+              </td>
+              <td>
+                {% if l.approved %}
+                  <span class="badge status-approved"><i class="fa-solid fa-check"></i> Approuvé</span>
+                {% else %}
+                  <span class="badge status-pending"><i class="fa-regular fa-clock"></i> En attente</span>
+                {% endif %}
+              </td>
+              <td>
+                {# Bouton Approuver seulement si non approuvé et si user est admin #}
+                {% if not l.approved and user.role == 'admin' %}
+                <form method="post" action="{{ request.url_for('leaves_approve', leave_id=l.id) }}" style="display: inline;">
+                  <button type="submit" class="btn btn-success btn-sm">
+                    <i class="fa-solid fa-thumbs-up"></i> Approuver
+                  </button>
+                </form>
+                {% else %}
+                  - {# Pas d'action si déjà approuvé ou pas admin #}
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+    </div>
+    {% else %}
+        <p class="no-data">Aucune demande de congé à afficher.</p>
+    {% endif %}
+</div>
 {% endblock %}
