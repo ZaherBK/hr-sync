@@ -1,65 +1,28 @@
-"""
-Database seeding script.
-
-This script creates the database schema and inserts some initial data such as
-branches, an admin user, managers, and a couple of employees. Run this
-module as a script to populate the database. It relies on the same
-environment variables as the main application to locate the database.
-"""
 import asyncio
-from sqlalchemy.ext.asyncio import AsyncSession
+from app.database import async_session_maker, engine
+from app.models import Base, User
+from app.auth import get_password_hash
+from sqlalchemy import delete
 
-from .db import engine, AsyncSessionLocal, Base
-from .auth import hash_password
-from .models import Branch, Employee, Role, User
-
-
-async def run() -> None:
-    # Create tables
+async def seed():
     async with engine.begin() as conn:
+        # إنشاء الجداول لو مش موجودة
         await conn.run_sync(Base.metadata.create_all)
 
-    async with AsyncSessionLocal() as session:
-        # Create branches
-        nabeul = Branch(name="Nabeul", city="Nabeul")
-        # Rename the second branch to Ariana to match the manager
-        ariana_branch = Branch(name="Ariana", city="Ariana")
-        session.add_all([nabeul, ariana_branch])
-        await session.flush()
+    async with async_session_maker() as session:
+        # حذف المستخدمين القدامى
+        await session.execute(delete(User))
 
-        # Owner (Zaher)
-        zaher = User(
-            email="zaher",
-            full_name="Zaher",
-            role=Role.admin,
-            branch_id=None,
-            hashed_password=hash_password("zah1405"),
-        )
-        # Managers with custom usernames and passwords
-        manager_nabeul = User(
-            email="nabeul",
-            full_name="Manager Nabeul",
-            role=Role.manager,
-            branch_id=nabeul.id,
-            hashed_password=hash_password("na123"),
-        )
-        manager_ariana = User(
-            email="ariana",
-            full_name="Manager Ariana",
-            role=Role.manager,
-            branch_id=ariana_branch.id,
-            hashed_password=hash_password("ar123"),
-        )
-        session.add_all([zaher, manager_nabeul, manager_ariana])
+        # إنشاء المستخدمين الجدد
+        users = [
+            User(email="zaher@local", full_name="Zaher", role="owner", hashed_password=get_password_hash("zah1405")),
+            User(email="ariana@local", full_name="Ariana", role="manager", hashed_password=get_password_hash("ar123")),
+            User(email="nabeul@local", full_name="Nabeul", role="manager", hashed_password=get_password_hash("na123")),
+        ]
 
-        # Employees
-        session.add_all([
-            Employee(first_name="Ali", last_name="Ben Salah", position="Sales", branch_id=nabeul.id),
-            Employee(first_name="Sana", last_name="Trabelsi", position="Cashier", branch_id=tunis.id),
-        ])
-
+        session.add_all(users)
         await session.commit()
-
+        print("✅ 3 users created successfully!")
 
 if __name__ == "__main__":
-    asyncio.run(run())
+    asyncio.run(seed())
