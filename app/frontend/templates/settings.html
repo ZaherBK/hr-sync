@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{# Accessible seulement par l'admin (vérifié dans main.py) #}
+
+{% block content %}
+<h2 class="page-title"><i class="fa-solid fa-gear"></i> Paramètres & Journal Filtré</h2>
+
+<div class="card">
+    <h3><i class="fa-solid fa-filter"></i> Journal d'Activité Filtré</h3>
+    <p>Cette vue affiche uniquement les actions importantes : <strong>congés, absences, avances et paiements</strong>.</p>
+    <p>Pour voir *toute* l'activité (créations d'employés, etc.), consultez le <a href="{{ request.url_for('home') }}">Tableau de bord</a>.</p>
+</div>
+
+{# Tableau du journal filtré #}
+<div class="card table-card">
+  <h3>Dernières Actions Pertinentes</h3>
+  {% if logs %}
+  <div class="table-responsive">
+    <table>
+      <thead>
+        <tr>
+          <th>Quand</th>
+          <th>Action</th>
+          <th>Entité</th>
+          <th>Détails</th>
+          {# <th>Par Qui</th> #}
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in logs %}
+        <tr>
+          <td class="timestamp">{{ a.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+          <td><span class="badge action-{{ a.action }}">{{ a.action }}</span></td>
+          <td>{{ a.entity }}{% if a.entity_id %} #{{ a.entity_id }}{% endif %}</td>
+          <td class="details">{{ a.details or '-' }}</td>
+          {# <td>ID: {{ a.actor_id }}</td> #}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+    <p class="no-data">Aucune activité (congé, absence, avance, paie) à afficher.</p>
+  {% endif %}
+</div>
+{% endblock %}
