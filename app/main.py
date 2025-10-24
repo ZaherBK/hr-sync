@@ -20,7 +20,7 @@ from .db import engine, Base, AsyncSessionLocal
 from .auth import authenticate_user, create_access_token, hash_password, ACCESS_TOKEN_EXPIRE_MINUTES
 # Importer TOUS les modèles nécessaires
 from .models import (
-    Attendance, AttendanceType, Branch, Deposit, Employee, Leave, User, Role, Pay, PayType, AuditLog
+    Attendance, AttendanceType, Branch, Deposit, Employee, Leave, User, Role, Pay, PayType, AuditLog, LeaveType
 )
 from .audit import latest, log
 from .routers import users, branches, employees as employees_api, attendance as attendance_api, leaves as leaves_api, deposits as deposits_api # --- Renommé pour éviter les conflits ---
