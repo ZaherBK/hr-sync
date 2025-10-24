@@ -180,3 +180,10 @@ async def clear_transaction_logs(request: Request):
 
     # Rediriger vers la page des paramètres
     return RedirectResponse(request.url_for('settings_page'), status_code=status.HTTP_302_FOUND)
+
+# In your main app file (e.g., main.py or app.py)
+
+@app.get("/")
+def read_root():
+    # This endpoint is just to confirm the API is running.
+    return {"status": "ok", "message": "Welcome to Bijouterie Zaher API"}
