@@ -1,19 +1,14 @@
 """
 Modèles Pydantic (schémas) pour la validation des requêtes et réponses.
-
-Ces schémas définissent la structure des données d'entrée et de sortie utilisées par l'API
-et les templates frontend. Ils s'appuient sur les modèles ORM définis dans `models.py`.
 """
 from datetime import date, datetime
 from typing import List, Optional
-
-# Utiliser `Decimal` pour les montants monétaires pour éviter les erreurs de virgule flottante
 from decimal import Decimal
 
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator, ConfigDict
 
-# Importer les Enums depuis models.py
-from .models import Role, AttendanceType, LeaveType
+# Importer les Enums depuis models.py, y compris PayType
+from .models import Role, AttendanceType, LeaveType, PayType
 
 
 # --- Schémas Utilisateur ---
@@ -21,78 +16,74 @@ class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
 
-
 class UserBase(BaseModel):
     email: EmailStr
-    full_name: str # Nom complet
-    role: Role # Rôle (admin, manager)
-    branch_id: Optional[int] = None # ID du magasin associé
-    is_active: bool = True # Compte actif ?
-
+    full_name: str
+    role: Role
+    branch_id: Optional[int] = None
+    is_active: bool = True
 
 class UserCreate(UserBase):
     password: str = Field(min_length=6)
 
-
 class UserOut(UserBase):
     id: int
-
-    class Config:
-        from_attributes = True # Permet de créer le schéma depuis un objet ORM
+    model_config = ConfigDict(from_attributes=True)
 
 
 # --- Schémas Magasin (Branch) ---
 class BranchBase(BaseModel):
-    name: str # Nom du magasin
-    city: str # Ville
-
+    name: str
+    city: str
 
 class BranchCreate(BranchBase):
-    pass # Identique à BranchBase pour la création
-
+    pass
 
 class BranchOut(BranchBase):
     id: int
-
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # --- Schémas Employé ---
 class EmployeeBase(BaseModel):
-    first_name: str # Prénom
-    last_name: str # Nom
-    cin: Optional[str] = Field(None, max_length=20) # CIN (Carte d'Identité Nationale) - Ajouté
-    position: str # Poste
-    branch_id: int # ID du magasin associé
-    active: bool = True # Statut actif ?
+    first_name: str
+    last_name: str
+    cin: Optional[str] = Field(None, max_length=20)
+    position: str
+    branch_id: int
+    active: bool = True
+    
+    # --- NOUVEAU CHAMP : Salaire ---
+    salary: Optional[Decimal] = Field(None, gt=0, max_digits=10, decimal_places=2)
 
-    # Validateur pour s'assurer que le CIN est numérique si fourni
     @field_validator('cin')
     def validate_cin(cls, v):
-        if v is not None and not v.isdigit():
+        if v is not None and v is not "" and not v.isdigit():
             raise ValueError('Le numéro CIN doit être composé uniquement de chiffres.')
         return v
+    
+    @field_validator('salary')
+    def validate_salary(cls, v):
+        if v is not None and v < 0:
+            raise ValueError('Le salaire doit être un montant positif.')
+        return v
+    
+    model_config = ConfigDict(from_attributes=True)
 
 
 class EmployeeCreate(EmployeeBase):
-    pass # Identique à EmployeeBase pour la création
-
+    pass
 
 class EmployeeOut(EmployeeBase):
     id: int
-
-    class Config:
-        from_attributes = True
 
 
 # --- Schémas Présence (Attendance) ---
 class AttendanceCreate(BaseModel):
     employee_id: int
     date: date
-    atype: AttendanceType # Type (present, absent)
-    note: Optional[str] = None # Note
-
+    atype: AttendanceType
+    note: Optional[str] = None
 
 class AttendanceOut(BaseModel):
     id: int
@@ -100,25 +91,23 @@ class AttendanceOut(BaseModel):
     date: date
     atype: AttendanceType
     note: Optional[str]
-    created_by: int # Créé par (ID utilisateur)
-    created_at: datetime # Date de création
-
-    class Config:
-        from_attributes = True
+    created_by: int
+    created_at: datetime
+    model_config = ConfigDict(from_attributes=True)
 
 
 # --- Schémas Congé (Leave) ---
 class LeaveCreate(BaseModel):
     employee_id: int
-    start_date: date # Date début
-    end_date: date # Date fin
-    ltype: LeaveType # Type (paid, unpaid, sick)
+    start_date: date
+    end_date: date
+    ltype: LeaveType
+    
+    model_config = ConfigDict(from_attributes=True)
 
-    # Validateur pour s'assurer que la date de fin n'est pas avant la date de début
     @field_validator('end_date')
-    def validate_end_date(cls, v, values):
-        # Utiliser context=values.data dans Pydantic v2 ou values dans v1
-        if 'start_date' in values.data and v < values.data['start_date']:
+    def validate_end_date(cls, v, info):
+        if 'start_date' in info.data and v < info.data['start_date']:
              raise ValueError('La date de fin ne peut pas être antérieure à la date de début.')
         return v
 
@@ -129,46 +118,57 @@ class LeaveOut(BaseModel):
     start_date: date
     end_date: date
     ltype: LeaveType
-    approved: bool # Approuvé ?
+    approved: bool
     created_by: int
     created_at: datetime
+    model_config = ConfigDict(from_attributes=True)
 
-    class Config:
-        from_attributes = True
 
-# --- NOUVEAUX SCHÉMAS : Avance (Deposit) ---
+# --- Schémas Avance (Deposit) ---
 class DepositBase(BaseModel):
     employee_id: int
-    # Utiliser Decimal pour la précision monétaire
-    amount: Decimal = Field(..., gt=0, max_digits=10, decimal_places=2) # Montant (> 0)
+    amount: Decimal = Field(..., gt=0, max_digits=10, decimal_places=2)
     date: date
-    note: Optional[str] = None # Note/Description
-
+    note: Optional[str] = None
+    model_config = ConfigDict(from_attributes=True)
 
 class DepositCreate(DepositBase):
-    pass # Identique à DepositBase pour la création
-
+    pass
 
 class DepositOut(DepositBase):
     id: int
-    created_by: int # Créé par (ID utilisateur)
-    created_at: datetime # Date de création
+    created_by: int
+    created_at: datetime
+    model_config = ConfigDict(from_attributes=True)
 
-    class Config:
-        from_attributes = True
+
+# --- NOUVEAUX SCHÉMAS : Paie (Pay) ---
+class PayBase(BaseModel):
+    employee_id: int
+    amount: Decimal = Field(..., gt=0, max_digits=10, decimal_places=2)
+    date: date
+    pay_type: PayType # Utiliser l'Enum
+    note: Optional[str] = None
+    model_config = ConfigDict(from_attributes=True)
+
+class PayCreate(PayBase):
+    pass
+
+class PayOut(PayBase):
+    id: int
+    created_by: int
+    created_at: datetime
 # --- FIN DES NOUVEAUX SCHÉMAS ---
 
 
 # --- Schéma Journal d'Audit ---
 class AuditOut(BaseModel):
     id: int
-    actor_id: int # Qui a fait l'action
-    action: str # Type d'action
-    entity: str # Entité concernée
-    entity_id: Optional[int] # ID de l'entité
-    branch_id: Optional[int] # Magasin concerné
-    details: Optional[str] # Détails
-    created_at: datetime # Quand
-
-    class Config:
-        from_attributes = True
+    actor_id: int
+    action: str
+    entity: str
+    entity_id: Optional[int]
+    branch_id: Optional[int]
+    details: Optional[str]
+    created_at: datetime
+    model_config = ConfigDict(from_attributes=True)
