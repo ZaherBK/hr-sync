@@ -73,7 +73,7 @@ class Employee(Base):
 
 class AttendanceType(str, enum.Enum):
     present = "present"
-    absent = "absent"   # On garde "present" au cas où, mais on n'utilisera que "absent"
+    absent = "absent"   # On n'utilisera que 'absent'
 
 
 class Attendance(Base):
@@ -81,7 +81,7 @@ class Attendance(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     employee_id: Mapped[int] = mapped_column(ForeignKey("employees.id"))
     date: Mapped[date] = mapped_column(Date, index=True)
-    atype: Mapped[AttendanceType] = mapped_column(Enum(AttendanceType)) # Type (devrait être 'absent')
+    atype: Mapped[AttendanceType] = mapped_column(Enum(AttendanceType))
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_by: Mapped[int] = mapped_column(ForeignKey("users.id"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
