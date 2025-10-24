@@ -11,6 +11,21 @@
     <p>Pour voir *toute* l'activité (créations d'employés, etc.), consultez le <a href="{{ request.url_for('home') }}">Tableau de bord</a>.</p>
 </div>
 
+{# --- NOUVEAU : Section d'Actions --- #}
+<div class="card form-card">
+    <h3><i class="fa-solid fa-triangle-exclamation"></i> Actions Administrateur</h3>
+    <p>Attention : L'action suivante est irréversible et supprimera toutes les données transactionnelles.</p>
+    <form method="post" action="{{ request.url_for('clear_logs') }}" style="margin-top: 20px;">
+        <div class="form-actions" style="justify-content: flex-start;">
+            <button type="submit" class="btn btn-danger" 
+                    onclick="return confirm('Êtes-vous sûr de vouloir tout supprimer ?\n\nCETTE ACTION EST IRRÉVERSIBLE.\n\nElle effacera :\n- Toutes les absences\n- Tous les congés\n- Toutes les avances\n- Tout l'historique de paie\n- Tous les journaux d\'audit\n\nLes employés, magasins et utilisateurs NE seront PAS supprimés.');">
+                <i class="fa-solid fa-trash-can"></i> Nettoyer tous les journaux
+            </button>
+        </div>
+    </form>
+</div>
+
+
 {# Tableau du journal filtré #}
 <div class="card table-card">
   <h3>Dernières Actions Pertinentes</h3>
@@ -23,7 +38,6 @@
           <th>Action</th>
           <th>Entité</th>
           <th>Détails</th>
-          {# <th>Par Qui</th> #}
         </tr>
       </thead>
       <tbody>
@@ -33,7 +47,6 @@
           <td><span class="badge action-{{ a.action }}">{{ a.action }}</span></td>
           <td>{{ a.entity }}{% if a.entity_id %} #{{ a.entity_id }}{% endif %}</td>
           <td class="details">{{ a.details or '-' }}</td>
-          {# <td>ID: {{ a.actor_id }}</td> #}
         </tr>
         {% endfor %}
       </tbody>
