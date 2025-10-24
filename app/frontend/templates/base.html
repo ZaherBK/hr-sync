@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="fr" data-bs-theme="dark">
+<html lang="fr" data-bs-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,28 +11,31 @@
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
     <link rel="stylesheet" href="{{ url_for('static', path='/styles.css') }}">
 </head>
 <body>
 
-    <nav class="navbar navbar-expand-md fixed-top p-0 shadow">
+    <nav class="navbar fixed-top">
         <div class="container-fluid">
-            <a class="navbar-brand col-md-3 col-lg-2 me-0 px-3 fs-6" href="{{ url_for('home') }}">
-                <img src="{{ url_for('static', path='/logo.png') }}" alt="Logo" height="30" class="d-inline-block align-text-top me-2">
+            <button class="navbar-toggler d-md-none" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarMenu" aria-controls="sidebarMenu" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <a class="navbar-brand col-md-3 col-lg-2 me-0 px-3" href="{{ url_for('home') }}">
+                <img src="{{ url_for('static', path='/logo.png') }}" alt="Logo" class="d-inline-block align-text-top me-2">
                 {{ app_name }}
             </a>
             
-            <button class="navbar-toggler me-3" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarMenu" aria-controls="sidebarMenu" aria-expanded="false" aria-label="Toggle navigation">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            
-            <div class="navbar-nav">
+            <div class="navbar-nav ms-auto">
                 <div class="nav-item text-nowrap d-flex align-items-center">
                     {% if user %}
-                        <span class="nav-link px-3 text-white">Bonjour, {{ user.full_name }}</span>
-                        <a class="nav-link px-3" href="{{ url_for('logout') }}">Déconnexion</a>
+                        <span class="nav-link px-3 d-none d-sm-block">Bonjour, {{ user.full_name }}</span>
+                        <a class="nav-link px-3" href="{{ url_for('logout') }}" title="Déconnexion">
+                            <i class="bi bi-box-arrow-right d-inline d-sm-none"></i>
+                            <span class="d-none d-sm-inline">Déconnexion</span>
+                        </a>
                     {% endif %}
                 </div>
             </div>
@@ -43,65 +46,63 @@
         <div class="row">
             
             <nav id="sidebarMenu" class="col-md-3 col-lg-2 d-md-block sidebar collapse">
-                <div class="position-sticky pt-3 sidebar-sticky">
+                <div class="position-sticky sidebar-sticky">
                     <ul class="nav flex-column">
                         <li class="nav-item">
                             <a class="nav-link {% if request.url.path == url_for('home') %}active{% endif %}" aria-current="page" href="{{ url_for('home') }}">
-                                <i class="bi bi-house-door"></i>
+                                <i class="bi bi-house-door-fill"></i>
                                 Tableau de bord
                             </a>
                         </li>
                         
                         {% if user.role == 'admin' or user.role == 'manager' %}
+                        <h6 class="sidebar-heading px-3 mt-3 mb-1">Gestion</h6>
                         <li class="nav-item">
                             <a class="nav-link {% if request.url.path == url_for('attendance_page') %}active{% endif %}" href="{{ url_for('attendance_page') }}">
-                                <i class="bi bi-person-x"></i>
-                                Gestion des Absences
+                                <i class="bi bi-person-x-fill"></i>
+                                Absences
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link {% if request.url.path == url_for('deposits_page') %}active{% endif %}" href="{{ url_for('deposits_page') }}">
                                 <i class="bi bi-cash-coin"></i>
-                                Gestion des Avances
+                                Avances
                             </a>
                         </li>
                         
                         <li class="nav-item">
                             <a class="nav-link {% if request.url.path == url_for('leaves_page') %}active{% endif %}" href="{{ url_for('leaves_page') }}">
-                                <i class="bi bi-calendar-check"></i>
-                                Gestion des Congés
+                                <i class="bi bi-calendar-check-fill"></i>
+                                Congés
                             </a>
                         </li>
                         
                         <li class="nav-item">
                             <a class="nav-link {% if request.url.path == url_for('pay_employee_page') %}active{% endif %}" href="{{ url_for('pay_employee_page') }}">
-                                <i class="bi bi-wallet2"></i>
-                                Enregistrer un Paiement
+                                <i class="bi bi-wallet-fill"></i>
+                                Paiements
                             </a>
                         </li>
-
                         {% endif %}
 
                         {% if user.role == 'admin' %}
-                        <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted text-uppercase">
-                            <span>Administration</span>
-                        </h6>
+                        <h6 class="sidebar-heading px-3 mt-3 mb-1">Administration</h6>
                         <ul class="nav flex-column mb-2">
                             <li class="nav-item">
                                 <a class="nav-link {% if request.url.path == url_for('employees_page') %}active{% endif %}" href="{{ url_for('employees_page') }}">
-                                    <i class="bi bi-people"></i>
-                                    Gestion des Employés
+                                    <i class="bi bi-people-fill"></i>
+                                    Employés
                                 </a>
                             </li>
                             <li class="nav-item">
                                 <a class="nav-link {% if request.url.path == url_for('employee_report_index') %}active{% endif %}" href="{{ url_for('employee_report_index') }}">
-                                    <i class="bi bi-file-earmark-person"></i>
-                                    Rapport par Employé
+                                    <i class="bi bi-file-earmark-person-fill"></i>
+                                    Rapports
                                 </a>
                             </li>
                             <li class="nav-item">
                                 <a class="nav-link {% if request.url.path == url_for('settings_page') %}active{% endif %}" href="{{ url_for('settings_page') }}">
-                                    <i class="bi bi-gear"></i>
+                                    <i class="bi bi-gear-fill"></i>
                                     Paramètres
                                 </a>
                             </li>
@@ -111,7 +112,7 @@
                 </div>
             </nav>
 
-            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 main-content">
+            <main class="col-md-9 ms-sm-auto col-lg-10 main-content">
                 {% block content %}{% endblock %}
             </main>
         </div>
