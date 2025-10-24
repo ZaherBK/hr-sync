@@ -2,7 +2,7 @@
 Point d'entrée de l'application FastAPI pour la gestion RH de la Bijouterie.
 """
 import os
-from datetime import timedelta, date as dt_date, datetime # Importer datetime
+from datetime import timedelta, date as dt_date, datetime
 from decimal import Decimal
 
 from fastapi import Depends, FastAPI, Form, HTTPException, Request, status
@@ -22,7 +22,7 @@ from .audit import latest, log # Importer 'log'
 from .routers import users, branches, employees, attendance, leaves, deposits
 
 
-APP_NAME = os.getenv("APP_NAME", "Bijouterie Zaher RH")
+APP_NAME = os.getenv("APP_NAME", "Bijouterie Zaher") # --- NOM CHANGÉ ---
 
 app = FastAPI(title=APP_NAME)
 
@@ -32,7 +32,7 @@ app.include_router(branches.router)
 app.include_router(employees.router)
 app.include_router(attendance.router)
 app.include_router(leaves.router)
-app.include_router(deposits.router) # Inclure le routeur des avances
+app.include_router(deposits.router)
 
 # Configuration des fichiers statiques et templates
 BASE_DIR = os.path.dirname(__file__)
@@ -199,7 +199,8 @@ async def logout(request: Request):
 async def employees_page(request: Request):
     """Page de gestion des employés."""
     user = _get_user_from_session(request)
-    if not user:
+    # --- PERMISSION : Visible par admin et manager ---
+    if not user or user["role"] not in (Role.admin.value, Role.manager.value):
         return RedirectResponse("/login", status_code=status.HTTP_302_FOUND)
 
     employees = []
@@ -207,9 +208,11 @@ async def employees_page(request: Request):
     manager_branch_id = None
 
     async with AsyncSessionLocal() as db:
+        # L'admin voit tous les employés
         if user["role"] == Role.admin.value:
             res_emp = await db.execute(select(Employee).order_by(Employee.last_name, Employee.first_name))
             employees = res_emp.scalars().all()
+        # Les managers voient ceux de leur magasin
         elif user["role"] == Role.manager.value and user["branch_id"]:
             res_emp = await db.execute(select(Employee).where(Employee.branch_id == user["branch_id"]).order_by(Employee.last_name, Employee.first_name))
             employees = res_emp.scalars().all()
@@ -255,16 +258,16 @@ async def employees_create(
     if cleaned_cin == "":
         cleaned_cin = None
 
-    # --- Validation du Salaire ---
+    # --- Validation du Salaire (seul l'admin peut le soumettre) ---
     validated_salary = None
-    if salary:
+    if salary and user["role"] == Role.admin.value: # --- PERMISSION ---
         try:
             validated_salary = Decimal(salary.replace(',', '.'))
             if validated_salary < 0:
                 raise ValueError("Le salaire doit être positif.")
         except Exception as e:
             print(f"Erreur: Montant de salaire invalide '{salary}'. Détails: {e}")
-            return RedirectResponse("/employees", status_code=status.HTTP_302_FOUND) # Simplifié
+            return RedirectResponse("/employees", status_code=status.HTTP_302_FOUND)
 
     async with AsyncSessionLocal() as db:
         if cleaned_cin:
@@ -308,10 +311,12 @@ async def attendance_page(request: Request):
     async with AsyncSessionLocal() as db:
         if user["role"] == Role.admin.value:
             res_emp = await db.execute(select(Employee).where(Employee.active == True).order_by(Employee.last_name))
+            # --- MODIFIÉ : Ne sélectionne que les absences ---
             res_att = await db.execute(select(Attendance).where(Attendance.atype == AttendanceType.absent).order_by(Attendance.date.desc(), Attendance.created_at.desc()).limit(100))
         elif user["role"] == Role.manager.value and user["branch_id"]:
             res_emp = await db.execute(select(Employee).where(Employee.branch_id == user["branch_id"], Employee.active == True).order_by(Employee.last_name))
             subquery = select(Employee.id).where(Employee.branch_id == user["branch_id"]).scalar_subquery()
+            # --- MODIFIÉ : Ne sélectionne que les absences ---
             res_att = await db.execute(select(Attendance).where(Attendance.employee_id.in_(subquery), Attendance.atype == AttendanceType.absent).order_by(Attendance.date.desc(), Attendance.created_at.desc()).limit(100))
         else:
             res_emp = await db.execute(select(Employee).where(Employee.id == -1))
@@ -385,7 +390,9 @@ async def attendance_create(
 # --- Page des Congés (reste admin-only) ---
 @app.get("/leaves", response_class=HTMLResponse, name="leaves_page")
 async def leaves_page(request: Request):
+    """Page de gestion des congés (Admin seulement)."""
     user = _get_user_from_session(request)
+    # --- PERMISSION : Admin seulement ---
     if not user or user["role"] != Role.admin.value:
         return RedirectResponse("/", status_code=status.HTTP_302_FOUND)
 
@@ -414,7 +421,9 @@ async def leaves_create(
     end_date: str = Form(...),
     ltype: str = Form(...),
 ):
+    """Traitement du formulaire de création de congé (Admin seulement)."""
     user = _get_user_from_session(request)
+    # --- PERMISSION : Admin seulement ---
     if not user or user["role"] != Role.admin.value:
          return RedirectResponse("/", status_code=status.HTTP_302_FOUND)
 
@@ -455,7 +464,9 @@ async def leaves_create(
 
 @app.post("/leaves/{leave_id}/approve", name="leaves_approve")
 async def leaves_approve(leave_id: int, request: Request):
+    """Approbation d'une demande de congé (Admin seulement)."""
     user = _get_user_from_session(request)
+    # --- PERMISSION : Admin seulement ---
     if not user or user["role"] != Role.admin.value:
         return RedirectResponse("/", status_code=status.HTTP_302_FOUND)
 
@@ -584,6 +595,7 @@ async def deposits_create(
 async def employee_report_index(request: Request, employee_id: int | None = None):
     """Page du rapport individuel par employé (Admin seulement)."""
     user = _get_user_from_session(request)
+    # --- PERMISSION : Admin seulement ---
     if not user or user["role"] != Role.admin.value:
         return RedirectResponse("/", status_code=status.HTTP_302_FOUND)
 
@@ -635,39 +647,12 @@ async def employee_report_index(request: Request, employee_id: int | None = None
         },
     )
 
-# --- NOUVELLE PAGE : Paramètres / Journal Filtré ---
-@app.get("/settings", response_class=HTMLResponse, name="settings_page")
-async def settings_page(request: Request):
-    """Page de Paramètres, affichant un journal d'audit filtré (Admin seulement)."""
-    user = _get_user_from_session(request)
-    if not user or user["role"] != Role.admin.value:
-        return RedirectResponse("/", status_code=status.HTTP_302_FOUND)
-
-    filtered_logs = []
-    async with AsyncSessionLocal() as db:
-        # Appeler 'latest' avec les filtres pour congés, absences, et avances
-        filtered_logs = await latest(
-            db,
-            user_role=user.get("role"),
-            branch_id=user.get("branch_id"),
-            entity_types=['leave', 'attendance', 'deposit', 'pay'] # Inclure 'pay'
-        )
-
-    return templates.TemplateResponse(
-        "settings.html",
-        {
-            "request": request,
-            "user": user,
-            "logs": filtered_logs, # Passer les logs filtrés au template
-            "app_name": APP_NAME,
-        },
-    )
-
 # --- NOUVELLE PAGE : Paie Employé ---
 @app.get("/pay-employee", response_class=HTMLResponse, name="pay_employee_page")
 async def pay_employee_page(request: Request):
     """Page pour payer un employé (Admin seulement)."""
     user = _get_user_from_session(request)
+    # --- PERMISSION : Admin seulement ---
     if not user or user["role"] != Role.admin.value:
         return RedirectResponse("/", status_code=status.HTTP_302_FOUND)
 
@@ -698,6 +683,7 @@ async def pay_employee_action(
 ):
     """Traitement du formulaire de paie."""
     user = _get_user_from_session(request)
+    # --- PERMISSION : Admin seulement ---
     if not user or user["role"] != Role.admin.value:
         return RedirectResponse("/", status_code=status.HTTP_302_FOUND)
 
@@ -741,3 +727,70 @@ async def pay_employee_action(
 
     # Rediriger vers le rapport de l'employé payé
     return RedirectResponse(f"/employee-report?employee_id={employee_id}", status_code=status.HTTP_302_FOUND)
+
+
+# --- NOUVELLE PAGE : Paramètres / Journal Filtré ---
+@app.get("/settings", response_class=HTMLResponse, name="settings_page")
+async def settings_page(request: Request):
+    """Page de Paramètres, affichant un journal d'audit filtré (Admin seulement)."""
+    user = _get_user_from_session(request)
+    # --- PERMISSION : Admin seulement ---
+    if not user or user["role"] != Role.admin.value:
+        return RedirectResponse("/", status_code=status.HTTP_302_FOUND)
+
+    filtered_logs = []
+    async with AsyncSessionLocal() as db:
+        # Appeler 'latest' avec les filtres
+        filtered_logs = await latest(
+            db,
+            user_role=user.get("role"),
+            branch_id=user.get("branch_id"),
+            entity_types=['leave', 'attendance', 'deposit', 'pay'] # On inclut la paie
+        )
+
+    return templates.TemplateResponse(
+        "settings.html",
+        {
+            "request": request,
+            "user": user,
+            "logs": filtered_logs,
+            "app_name": APP_NAME,
+        },
+    )
+
+# --- NOUVELLE ACTION : Vider les journaux ---
+@app.post("/settings/clear-logs", name="clear_logs_action")
+async def clear_logs_action(request: Request):
+    """Vide toutes les données transactionnelles (Admin seulement)."""
+    user = _get_user_from_session(request)
+    # --- PERMISSION : Admin seulement ---
+    if not user or user["role"] != Role.admin.value:
+        return RedirectResponse("/", status_code=status.HTTP_302_FOUND)
+
+    async with AsyncSessionLocal() as db:
+        print(f"ACTION ADMIN (ID={user['id']}): Vidage des journaux transactionnels...")
+        
+        # 1. Vider les journaux d'audit
+        await db.execute(delete(AuditLog))
+        print("Logs d'audit vidés.")
+        
+        # 2. Vider les absences
+        await db.execute(delete(Attendance))
+        print("Absences vidées.")
+        
+        # 3. Vider les congés
+        await db.execute(delete(Leave))
+        print("Congés vidés.")
+        
+        # 4. Vider les avances
+        await db.execute(delete(Deposit))
+        print("Avances vidées.")
+        
+        # 5. Vider l'historique de paie
+        await db.execute(delete(Pay))
+        print("Historique de paie vidé.")
+        
+        await db.commit()
+        print("Tous les journaux transactionnels ont été vidés.")
+
+    return RedirectResponse("/settings", status_code=status.HTTP_302_FOUND)
