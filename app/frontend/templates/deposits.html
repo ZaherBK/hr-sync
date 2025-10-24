@@ -1,11 +1,8 @@
 {% extends "base.html" %}
 
-{# Accessible par admin et managers (vérifié dans main.py) #}
-
 {% block content %}
 <h2 class="page-title"><i class="fa-solid fa-money-bill-transfer"></i> Gestion des Avances</h2>
 
-{# Formulaire d'ajout d'avance #}
 <div class="card form-card">
     <h3><i class="fa-solid fa-plus"></i> Ajouter une Avance</h3>
     <form method="post" action="{{ request.url_for('deposits_create') }}">
@@ -14,14 +11,13 @@
           <label for="employee_id">Employé</label>
           <select id="employee_id" name="employee_id" required>
              <option value="" disabled selected>-- Choisir un employé --</option>
-            {% for e in employees %} {# Employés actifs du magasin (ou tous pour admin) #}
+            {% for e in employees %}
             <option value="{{ e.id }}">{{ e.first_name }} {{ e.last_name }}</option>
             {% endfor %}
           </select>
         </div>
         <div class="form-group">
           <label for="amount">Montant (TND)</label>
-          {# Utiliser type="text" et pattern pour meilleure compatibilité et validation #}
           <input type="text" id="amount" name="amount" required placeholder="Ex: 150.50"
                  pattern="^\d+([.,]\d{1,2})?$"
                  title="Montant positif, ex: 150 ou 150.50 ou 150,50">
@@ -30,7 +26,8 @@
       <div class="form-row">
          <div class="form-group">
           <label for="date">Date de l'Avance</label>
-          <input type="date" id="date" name="date" required> {# L'utilisateur choisira la date #}
+          {# --- MODIFIÉ : Ajout de 'value=today_date' --- #}
+          <input type="date" id="date" name="date" required value="{{ today_date }}">
         </div>
         <div class="form-group">
           <label for="note">Note (Optionnel)</label>
@@ -45,7 +42,6 @@
     </form>
 </div>
 
-{# Tableau des avances récentes #}
 <div class="card table-card">
     <h3><i class="fa-solid fa-list-ul"></i> Avances Récentes</h3>
     {% if deposits %}
@@ -66,7 +62,6 @@
             <tr>
               <td>{{ d.id }}</td>
               <td>
-                 {# Afficher le nom de l'employé #}
                 {% set found_employee = namespace(name='ID: ' ~ d.employee_id) %}
                 {% for e in employees %}
                     {% if e.id == d.employee_id %}
@@ -76,7 +71,7 @@
                 {{ found_employee.name }}
               </td>
               <td>{{ d.date.strftime('%Y-%m-%d') }}</td>
-              <td class="amount">{{ "%.2f"|format(d.amount|float) }}</td> {# Formater le montant #}
+              <td class="amount">{{ "%.2f"|format(d.amount|float) }}</td>
               <td>{{ d.note or '-' }}</td>
               <td class="timestamp">{{ d.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
             </tr>
