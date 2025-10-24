@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{# Accessible seulement par l'admin (vérifié dans main.py) #}
+
+{% block content %}
+<h2 class="page-title"><i class="fa-solid fa-hand-holding-dollar"></i> Enregistrer un Paiement</h2>
+
+<div class="card form-card">
+    <h3><i class="fa-solid fa-file-invoice-dollar"></i> Nouveau Paiement</h3>
+    <form method="post" action="{{ request.url_for('pay_employee_action') }}">
+      <div class="form-row">
+        <div class="form-group">
+          <label for="employee_id">Employé</label>
+          <select id="employee_id" name="employee_id" required>
+             <option value="" disabled selected>-- Choisir un employé --</option>
+            {% for e in employees %} {# Admin voit tous les employés actifs #}
+            <option value="{{ e.id }}">{{ e.first_name }} {{ e.last_name }} (Salaire: {{ "%.2f"|format(e.salary|float) if e.salary else 'N/A' }})</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="amount">Montant Payé (TND)</label>
+          <input type="text" id="amount" name="amount" required placeholder="Ex: 1200.00"
+                 pattern="^\d+([.,]\d{1,2})?$"
+                 title="Montant positif, ex: 1200 ou 1200.50">
+        </div>
+      </div>
+      <div class="form-row">
+         <div class="form-group">
+          <label for="date">Date du Paiement</label>
+          <input type="date" id="date" name="date" required value="{{ today_date }}">
+        </div>
+        <div class="form-group">
+            <label for="pay_type">Type de Paiement</label>
+            <select id="pay_type" name="pay_type" required>
+              <option value="hebdomadaire">Hebdomadaire</option>
+              <option value="mensuel">Mensuel</option>
+            </select>
+          </div>
+      </div>
+       <div class="form-row">
+        <div class="form-group full-width">
+          <label for="note">Note (Optionnel)</label>
+          <input type="text" id="note" name="note" placeholder="Ex: Salaire Octobre, Prime...">
+        </div>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-success">
+            <i class="fa-solid fa-save"></i> Enregistrer Paiement
+        </button>
+      </div>
+    </form>
+</div>
+{% endblock %}
