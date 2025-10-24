@@ -200,20 +200,17 @@ async def logout(request: Request):
 # --- Employés ---
 @app.get("/employees", response_class=HTMLResponse, name="employees_page")
 async def employees_page(request: Request, db: AsyncSession = Depends(get_db)):
-    """Affiche la page de gestion des employés."""
+    """Affiche la page de gestion des employés (Admin seulement)."""
     user = _get_user_from_session(request)
-    if not user:
-        return RedirectResponse(request.url_for('login_page'), status_code=status.HTTP_302_FOUND)
+    if not user or user["role"] != Role.admin.value:  # <-- MODIFIED
+        return RedirectResponse(request.url_for('home'), status_code=status.HTTP_302_FOUND)
 
-    # L'admin voit toutes les branches, le manager ne voit que la sienne
+    # L'admin voit toutes les branches
     branches_query = select(Branch)
     employees_query = select(Employee).where(Employee.active == True).order_by(Employee.first_name)
     
     manager_branch_id = None
-    if user["role"] == Role.manager.value:
-        manager_branch_id = user.get("branch_id")
-        branches_query = branches_query.where(Branch.id == manager_branch_id)
-        employees_query = employees_query.where(Employee.branch_id == manager_branch_id)
+    # (Le bloc 'if user["role"] == Role.manager.value:' n'est plus nécessaire ici)
 
     res_branches = await db.execute(branches_query)
     res_employees = await db.execute(employees_query)
@@ -242,7 +239,7 @@ async def employees_create(
 ):
     """Crée un nouvel employé."""
     user = _get_user_from_session(request)
-    if not user or user["role"] not in [Role.admin.value, Role.manager.value]:
+    if not user or user["role"] != Role.admin.value:
         return RedirectResponse(request.url_for('login_page'), status_code=status.HTTP_302_FOUND)
     
     # Sécurité : un manager ne peut ajouter un employé que dans son propre magasin
@@ -430,13 +427,20 @@ async def deposits_create(
 # --- Congés (Leaves) ---
 @app.get("/leaves", response_class=HTMLResponse, name="leaves_page")
 async def leaves_page(request: Request, db: AsyncSession = Depends(get_db)):
-    """Affiche la page des congés (Admin seulement)."""
+"""Affiche la page des congés (Admin ou Manager)."""
     user = _get_user_from_session(request)
-    if not user or user["role"] != Role.admin.value:
+    if not user or user["role"] not in [Role.admin.value, Role.manager.value]:
         return RedirectResponse(request.url_for('home'), status_code=status.HTTP_302_FOUND)
 
     employees_query = select(Employee).where(Employee.active == True).order_by(Employee.first_name)
     leaves_query = select(Leave).order_by(Leave.start_date.desc())
+
+    # --- AJOUTÉ : Filtre pour les managers ---
+    if user["role"] == Role.manager.value:
+        branch_id = user.get("branch_id")
+        employees_query = employees_query.where(Employee.branch_id == branch_id)
+        leaves_query = leaves_query.join(Employee).where(Employee.branch_id == branch_id)
+    # --- FIN AJOUT ---
 
     res_employees = await db.execute(employees_query)
     res_leaves = await db.execute(leaves_query.limit(100))
@@ -460,12 +464,24 @@ async def leaves_create(
     ltype: Annotated[LeaveType, Form()],
     db: AsyncSession = Depends(get_db)
 ):
-    """Crée une demande de congé (Admin seulement)."""
+"""Crée une demande de congé (Admin ou Manager)."""
     user = _get_user_from_session(request)
-    if not user or user["role"] != Role.admin.value:
+    if not user or user["role"] not in [Role.admin.value, Role.manager.value]:
         return RedirectResponse(request.url_for('home'), status_code=status.HTTP_302_FOUND)
 
     if start_date > end_date:
+        # Gérer erreur de date
+        return RedirectResponse(request.url_for('leaves_page'), status_code=status.HTTP_302_FOUND)
+
+    res_emp = await db.execute(select(Employee).where(Employee.id == employee_id))
+    employee = res_emp.scalar_one_or_none()
+    if not employee:
+        return RedirectResponse(request.url_for('leaves_page'), status_code=status.HTTP_302_FOUND)
+
+    # --- AJOUTÉ : Sécurité pour les managers ---
+    if user["role"] == Role.manager.value and user.get("branch_id") != employee.branch_id:
+        return RedirectResponse(request.url_for('leaves_page'), status_code=status.HTTP_302_FOUND)
+    # --- FIN AJOUT ---
         # Gérer erreur de date
         return RedirectResponse(request.url_for('leaves_page'), status_code=status.HTTP_302_FOUND)
 
@@ -581,12 +597,18 @@ async def employee_report_index(
 # --- Payer Employé ---
 @app.get("/pay-employee", response_class=HTMLResponse, name="pay_employee_page")
 async def pay_employee_page(request: Request, db: AsyncSession = Depends(get_db)):
-    """Affiche la page pour enregistrer un paiement (Admin seulement)."""
+"""Affiche la page pour enregistrer un paiement (Admin ou Manager)."""
     user = _get_user_from_session(request)
-    if not user or user["role"] != Role.admin.value:
+    if not user or user["role"] not in [Role.admin.value, Role.manager.value]:
         return RedirectResponse(request.url_for('home'), status_code=status.HTTP_302_FOUND)
 
-    res_employees = await db.execute(select(Employee).where(Employee.active == True).order_by(Employee.first_name))
+    employees_query = select(Employee).where(Employee.active == True).order_by(Employee.first_name)
+    # --- AJOUTÉ : Filtre pour les managers ---
+    if user["role"] == Role.manager.value:
+        employees_query = employees_query.where(Employee.branch_id == user.get("branch_id"))
+    # --- FIN AJOUT ---
+    
+    res_employees = await db.execute(employees_query)
     
     context = {
         "request": request,
@@ -608,12 +630,21 @@ async def pay_employee_action(
     db: AsyncSession = Depends(get_db),
     note: Annotated[str, Form()] = None
 ):
-    """Enregistre un nouveau paiement (Admin seulement)."""
+"""Enregistre un nouveau paiement (Admin ou Manager)."""
     user = _get_user_from_session(request)
-    if not user or user["role"] != Role.admin.value:
+    if not user or user["role"] not in [Role.admin.value, Role.manager.value]:
         return RedirectResponse(request.url_for('home'), status_code=status.HTTP_302_FOUND)
 
     res_emp = await db.execute(select(Employee).where(Employee.id == employee_id))
+    employee = res_emp.scalar_one_or_none()
+    
+    if not employee or amount <= 0:
+        return RedirectResponse(request.url_for('pay_employee_page'), status_code=status.HTTP_302_FOUND)
+
+    # --- AJOUTÉ : Sécurité pour les managers ---
+    if user["role"] == Role.manager.value and user.get("branch_id") != employee.branch_id:
+        return RedirectResponse(request.url_for('pay_employee_page'), status_code=status.HTTP_302_FOUND)
+    # --- FIN AJOUT ---
     employee = res_emp.scalar_one_or_none()
     
     if not employee or amount <= 0:
@@ -636,9 +667,9 @@ async def pay_employee_action(
         employee.branch_id, f"Paiement pour Employé ID={employee_id}, Montant={amount}, Type={pay_type.value}"
     )
 
-    # Rediriger vers la page du rapport de cet employé pour voir le paiement
+# Rediriger vers la page du rapport de cet employé pour voir le paiement
     return RedirectResponse(
-        request.url_for('employee_report_index') + f"?employee_id={employee_id}", 
+        str(request.url_for('employee_report_index')) + f"?employee_id={employee_id}", 
         status_code=status.HTTP_302_FOUND
     )
 
