@@ -1,62 +1,58 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h2 class="page-title"><i class="fa-regular fa-calendar-check"></i> Gestion des Présences</h2>
+{# --- MODIFIÉ : Titre --- #}
+<h2 class="page-title"><i class="fa-regular fa-calendar-xmark"></i> Gestion des Absences</h2>
 
-{# Formulaire de saisie de présence #}
 <div class="card form-card">
-    <h3><i class="fa-solid fa-user-clock"></i> Marquer la Présence</h3>
+    {# --- MODIFIÉ : Titre formulaire --- #}
+    <h3><i class="fa-solid fa-user-clock"></i> Enregistrer une Absence</h3>
     <form method="post" action="{{ request.url_for('attendance_create') }}">
       <div class="form-row">
         <div class="form-group">
           <label for="employee_id">Employé</label>
           <select id="employee_id" name="employee_id" required>
              <option value="" disabled selected>-- Choisir un employé --</option>
-            {% for e in employees %} {# Afficher seulement les employés pertinents (filtrés dans main.py) #}
+            {% for e in employees %}
             <option value="{{ e.id }}">{{ e.first_name }} {{ e.last_name }}</option>
             {% endfor %}
           </select>
         </div>
         <div class="form-group">
-          <label for="date">Date</label>
-          <input type="date" id="date" name="date" required> {# L'utilisateur choisira la date #}
+          <label for="date">Date de l'Absence</label>
+          {# --- MODIFIÉ : Ajout de 'value=today_date' --- #}
+          <input type="date" id="date" name="date" required value="{{ today_date }}">
         </div>
       </div>
       <div class="form-row">
-        <div class="form-group">
-          <label for="atype">Type</label>
-          <select id="atype" name="atype" required>
-            <option value="present">Présent</option>
-            <option value="absent">Absent</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label for="note">Note (Optionnel)</label>
-          <input type="text" id="note" name="note" placeholder="Ex: Retard, Maladie...">
+        {# --- SUPPRIMÉ : Le groupe 'Type' (atype) a été enlevé --- #}
+        <div class="form-group full-width"> {# Prend toute la largeur #}
+          <label for="note">Note / Raison (Optionnel)</label>
+          <input type="text" id="note" name="note" placeholder="Ex: Maladie, Non justifié...">
         </div>
       </div>
       <div class="form-actions">
-        <button type="submit" class="btn btn-success">
-            <i class="fa-solid fa-save"></i> Enregistrer
+        <button type="submit" class="btn btn-danger"> {# Bouton rouge pour absence #}
+            <i class="fa-solid fa-save"></i> Enregistrer Absence
         </button>
       </div>
     </form>
 </div>
 
-{# Tableau des présences récentes #}
 <div class="card table-card">
-    <h3><i class="fa-solid fa-list-ul"></i> Présences Récentes</h3>
+    {# --- MODIFIÉ : Titre --- #}
+    <h3><i class="fa-solid fa-list-ul"></i> Absences Récentes</h3>
     {% if attendance %}
     <div class="table-responsive">
         <table>
           <thead>
             <tr>
               <th>#</th>
-              <th>Employé</th> {# Afficher le nom serait mieux #}
+              <th>Employé</th>
               <th>Date</th>
               <th>Type</th>
               <th>Note</th>
-              <th>Enregistré le</th> {# Date de création de l'enregistrement #}
+              <th>Enregistré le</th>
             </tr>
            </thead>
            <tbody>
@@ -64,7 +60,7 @@
             <tr>
               <td>{{ a.id }}</td>
               <td>
-                  {# Essayer d'afficher le nom de l'employé #}
+                  {# Boucle pour trouver le nom de l'employé #}
                   {% set found_employee = namespace(name='ID: ' ~ a.employee_id) %}
                   {% for e in employees %}
                       {% if e.id == a.employee_id %}
@@ -75,10 +71,10 @@
               </td>
               <td>{{ a.date.strftime('%Y-%m-%d') }}</td>
               <td>
-                  {% if a.atype == 'present' %}
-                      <span class="badge status-present">Présent</span>
-                  {% else %}
+                  {% if a.atype == 'absent' %}
                       <span class="badge status-absent">Absent</span>
+                  {% else %}
+                       <span class="badge status-present">{{ a.atype.value }}</span>
                   {% endif %}
               </td>
               <td>{{ a.note or '-' }}</td>
@@ -89,7 +85,7 @@
         </table>
     </div>
     {% else %}
-        <p class="no-data">Aucun enregistrement de présence à afficher.</p>
+        <p class="no-data">Aucun enregistrement d'absence à afficher.</p>
     {% endif %}
 </div>
 {% endblock %}
