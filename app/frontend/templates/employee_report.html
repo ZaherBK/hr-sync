@@ -1,208 +1,111 @@
-{% extends "base.html" %}
+<h2 class="page-title"><i class="bi bi-person-circle"></i> Rapport Employé</h2>
 
-{% block content %}
-<h2 class="page-title"><i class="fa-solid fa-user-check"></i> Rapport Employé</h2>
-
-{# Sélection de l'employé #}
-<div class="card form-card">
-    <h3>Sélectionner un Employé</h3>
-    <form method="get" action="{{ request.url_for('employee_report_index') }}">
-        <div class="form-row">
-            <div class="form-group">
-                <label for="employee_id">Employé</label>
-                <select id="employee_id" name="employee_id" onchange="this.form.submit()">
-                    <option value="" disabled {% if not selected_employee %}selected{% endif %}>
-                        -- Choisir un employé pour voir son rapport --
-                    </option>
-                    {% for e in employees %}
-                    <option value="{{ e.id }}" {% if selected_employee and e.id == selected_employee.id %}selected{% endif %}>
-                        {{ e.first_name }} {{ e.last_name }} ({{ e.cin or 'Pas de CIN' }})
-                    </option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="form-group">
-                <label>&nbsp;</label> {# Espace pour alignement #}
-                <button type="submit" class="btn btn-primary">
-                    <i class="fa-solid fa-search"></i> Afficher Rapport
-                </button>
-            </div>
-        </div>
-    </form>
+<div class="card ranked-card">
+  <h3>Sélectionner un Employé</h3>
+  <form method="GET" action="{{ url_for('employee_report_index') }}">
+    <div class="form-row align-items-end">
+      <div class="form-group">
+        <label for="employee">Employé</label>
+        <select id="employee" name="employee_id" class="form-select" required>
+          <option value="">-- Choisir un employé pour voir son rapport --</option>
+          {% for e in employees %}
+          <option value="{{ e.id }}" {% if employee and employee.id == e.id %}selected{% endif %}>
+            {{ e.first_name }} {{ e.last_name }} ({{ e.id }})
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <button type="submit" class="btn btn-primary w-100"><i class="bi bi-search"></i> Afficher Rapport</button>
+      </div>
+    </div>
+  </form>
 </div>
 
-{# Afficher les détails si un employé est sélectionné #}
-{% if selected_employee %}
-<div class="card">
-    <h3>Détails pour : {{ selected_employee.first_name }} {{ selected_employee.last_name }}</h3>
-    <div class="employee-details">
-        <p><strong>ID:</strong> {{ selected_employee.id }}</p>
-        <p><strong>CIN:</strong> {{ selected_employee.cin or '-' }}</p>
-        <p><strong>Poste:</strong> {{ selected_employee.position }}</p>
-        <p><strong>Salaire de Base:</strong> <span class="amount">{{ "%.2f"|format(selected_employee.salary|float) if selected_employee.salary else '-' }} TND</span></p>
-        <p><strong>Statut:</strong> 
-            {% if selected_employee.active %}
-                <span class="badge status-active">Actif</span>
-            {% else %}
-                <span class="badge status-inactive">Inactif</span>
-            {% endif %}
-        </p>
-    </div>
+{% if employee %}
+<div class="card ranked-card">
+  <h3>Détails pour : <strong>{{ employee.first_name }} {{ employee.last_name }}</strong></h3>
+  <div class="employee-details">
+    <p><strong>Poste :</strong> {{ employee.position }}</p>
+    <p><strong>Salaire de Base :</strong> {{ employee.base_salary }} TND</p>
+    <p><strong>Statut :</strong> <span class="status">Actif</span></p>
+  </div>
 </div>
 
-{# Onglets pour les différentes sections #}
-<div class="tabs-container">
-    <div class="tabs-nav">
-        <a href="#paie" class="tab-link active">Paie</a>
-        <a href="#avances" class="tab-link">Avances</a>
-        <a href="#absences" class="tab-link">Absences</a>
-        <a href="#conges" class="tab-link">Congés</a>
-    </div>
-
-    <div class="tab-content card" id="paie">
-        <h4><i class="fa-solid fa-hand-holding-dollar"></i> Historique de Paie</h4>
-        {% if pay_history %}
-        <div class="table-responsive">
-            <table>
-                <thead>
-                    <tr><th>Date</th><th>Type</th><th>Montant (TND)</th><th>Note</th><th>Enregistré le</th></tr>
-                </thead>
-                <tbody>
-                    {% for p in pay_history %}
-                    <tr>
-                        <td>{{ p.date.strftime('%Y-%m-%d') }}</td>
-                        <td>{{ p.pay_type.value }}</td>
-                        <td class="amount">{{ "%.2f"|format(p.amount|float) }}</td>
-                        <td>{{ p.note or '-' }}</td>
-                        <td class="timestamp">{{ p.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        {% else %}
-        <p class="no-data">Aucun historique de paie pour cet employé.</p>
-        {% endif %}
-    </div>
-
-    <div class="tab-content card" id="avances" style="display: none;">
-        <h4><i class="fa-solid fa-money-bill-transfer"></i> Historique des Avances</h4>
-        {% if deposits %}
-        <div class="table-responsive">
-            <table>
-                <thead>
-                    <tr><th>Date</th><th>Montant (TND)</th><th>Note</th><th>Enregistré le</th></tr>
-                </thead>
-                <tbody>
-                    {% for d in deposits %}
-                    <tr>
-                        <td>{{ d.date.strftime('%Y-%m-%d') }}</td>
-                        <td class="amount">{{ "%.2f"|format(d.amount|float) }}</td>
-                        <td>{{ d.note or '-' }}</td>
-                        <td class="timestamp">{{ d.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        {% else %}
-        <p class="no-data">Aucune avance pour cet employé.</p>
-        {% endif %}
-    </div>
-
-    <div class="tab-content card" id="absences" style="display: none;">
-        <h4><i class="fa-regular fa-calendar-xmark"></i> Historique des Absences</h4>
-         {% if absences %}
-        <div class="table-responsive">
-            <table>
-                <thead>
-                    <tr><th>Date</th><th>Note</th><th>Enregistré le</th></tr>
-                </thead>
-                <tbody>
-                    {% for a in absences %}
-                    <tr>
-                        <td>{{ a.date.strftime('%Y-%m-%d') }}</td>
-                        <td>{{ a.note or '-' }}</td>
-                        <td class="timestamp">{{ a.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        {% else %}
-        <p class="no-data">Aucune absence enregistrée pour cet employé.</p>
-        {% endif %}
-    </div>
-
-    <div class="tab-content card" id="conges" style="display: none;">
-        <h4><i class="fa-solid fa-umbrella-beach"></i> Historique des Congés</h4>
-        {% if leaves %}
-        <div class="table-responsive">
-            <table>
-                <thead>
-                    <tr><th>Date Début</th><th>Date Fin</th><th>Type</th><th>Statut</th></tr>
-                </thead>
-                <tbody>
-                    {% for l in leaves %}
-                    <tr>
-                        <td>{{ l.start_date.strftime('%Y-%m-%d') }}</td>
-                        <td>{{ l.end_date.strftime('%Y-%m-%d') }}</td>
-                        <td>
-                            {% if l.ltype == 'paid' %}<span class="badge ltype-paid">Payé</span>
-                            {% elif l.ltype == 'unpaid' %}<span class="badge ltype-unpaid">Non Payé</span>
-                            {% elif l.ltype == 'sick' %}<span class="badge ltype-sick">Maladie</span>
-                            {% else %}{{ l.ltype }}
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if l.approved %}
-                              <span class="badge status-approved"><i class="fa-solid fa-check"></i> Approuvé</span>
-                            {% else %}
-                              <span class="badge status-pending"><i class="fa-regular fa-clock"></i> En attente</span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        {% else %}
-        <p class="no-data">Aucun congé enregistré pour cet employé.</p>
-        {% endif %}
-    </div>
+<div class="tabs">
+  <button class="active" data-tab="paie">Paie</button>
+  <button data-tab="avances">Avances</button>
+  <button data-tab="absences">Absences</button>
+  <button data-tab="conges">Congés</button>
 </div>
 
+<div id="paie" class="tab-content active">
+  <h4>Historique de Paie</h4>
+  {% if pays %}
+  <div class="table-responsive">
+    <table>
+      <thead><tr><th>Date</th><th>Type</th><th>Montant (TND)</th><th>Note</th><th>Enregistré le</th></tr></thead>
+      <tbody>
+        {% for p in pays %}
+        <tr>
+          <td>{{ p.date }}</td>
+          <td>{{ p.type }}</td>
+          <td>{{ p.amount }}</td>
+          <td>{{ p.note or '-' }}</td>
+          <td>{{ p.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}<p class="no-data">Aucun paiement enregistré.</p>{% endif %}
+</div>
+
+<div id="avances" class="tab-content">
+  <h4>Historique des Avances</h4>
+  {% if avances %}
+  <div class="table-responsive">
+    <table>
+      <thead><tr><th>Date</th><th>Montant</th><th>Note</th></tr></thead>
+      <tbody>
+        {% for a in avances %}
+        <tr><td>{{ a.date }}</td><td>{{ a.amount }}</td><td>{{ a.note or '-' }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}<p class="no-data">Aucune avance enregistrée.</p>{% endif %}
+</div>
+
+<div id="absences" class="tab-content">
+  <h4>Absences</h4>
+  {% if absences %}
+  <div class="table-responsive">
+    <table>
+      <thead><tr><th>Date</th><th>Note</th></tr></thead>
+      <tbody>
+        {% for a in absences %}
+        <tr><td>{{ a.date }}</td><td>{{ a.note or '-' }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}<p class="no-data">Aucune absence enregistrée.</p>{% endif %}
+</div>
+
+<div id="conges" class="tab-content">
+  <h4>Congés</h4>
+  {% if conges %}
+  <div class="table-responsive">
+    <table>
+      <thead><tr><th>Période</th><th>Type</th><th>Statut</th></tr></thead>
+      <tbody>
+        {% for c in conges %}
+        <tr><td>{{ c.start_date }} → {{ c.end_date }}</td><td>{{ c.type }}</td><td>{{ c.status }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}<p class="no-data">Aucun congé enregistré.</p>{% endif %}
+</div>
 {% endif %}
-{% endblock %}
-
-{% block body_extra %}
-{# Petit script JS pour gérer les onglets #}
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const tabLinks = document.querySelectorAll('.tabs-nav .tab-link');
-        const tabContents = document.querySelectorAll('.tabs-container .tab-content');
-
-        tabLinks.forEach(link => {
-            link.addEventListener('click', function(event) {
-                event.preventDefault();
-                const targetId = this.getAttribute('href'); // Ex: #avances
-
-                // Cacher tous les contenus
-                tabContents.forEach(content => {
-                    content.style.display = 'none';
-                });
-
-                // Enlever 'active' de tous les liens
-                tabLinks.forEach(l => {
-                    l.classList.remove('active');
-                });
-
-                // Afficher le contenu cible
-                document.querySelector(targetId).style.display = 'block';
-                // Ajouter 'active' au lien cliqué
-                this.classList.add('active');
-            });
-        });
-    });
-</script>
-{% endblock %}
