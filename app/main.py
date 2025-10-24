@@ -21,6 +21,7 @@ from .models import (
 )
 from .audit import latest, log
 from .routers import users, branches, employees, attendance, leaves, deposits
+from .deps import get_db, current_user # Assurez-vous que les dépendances sont là
 
 
 # --- MODIFIÉ : Nom par défaut changé ---
@@ -183,4 +184,36 @@ async def clear_transaction_logs(request: Request):
 
 # In your main app file (e.g., main.py or app.py)
 
+@app.get("/", response_class=HTMLResponse, name="home")
+async def home(request: Request, db: AsyncSession = Depends(get_db)):
+    """Affiche la page d'accueil (tableau de bord)."""
+    user = _get_user_from_session(request)
+    if not user:
+        return RedirectResponse(request.url_for('login_page'), status_code=status.HTTP_302_FOUND)
 
+    # ... (le reste de la logique de votre fonction 'home' pour
+    # récupérer les données du tableau de bord) ...
+
+    # Exemple de données (à remplacer par votre vraie logique)
+    context = {
+        "request": request,
+        "user": user,
+        "app_name": APP_NAME,
+        "latest_logs": await latest(db, user) # Exemple
+    }
+    return templates.TemplateResponse("dashboard.html", context)
+
+
+@app.get("/login", response_class=HTMLResponse, name="login_page")
+async def login_page(request: Request):
+    """Affiche la page de connexion."""
+    # ... (votre logique de page de connexion) ...
+    return templates.TemplateResponse("login.html", {"request": request, "app_name": APP_NAME})
+
+# ... (Ajoutez TOUTES les autres fonctions de page manquantes
+# comme login_action, logout, employees_page, settings_page, etc.) ...
+
+
+# --- NOUVELLE ROUTE : Nettoyer les journaux ---
+@app.post("/settings/clear-logs", name="clear_logs")
+async def clear_transaction_logs(request: Request):
