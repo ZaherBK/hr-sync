@@ -1,5 +1,5 @@
 /* =========================================================
-   AURORA LUXE v2 — Neon Glass + High Contrast (by Zaher)
+   AURORA LUXE v2.1 — Neon Glass + High Contrast (by Zaher)
    ========================================================= */
 
 /* ---------- Reset ---------- */
@@ -15,17 +15,17 @@ body { margin: 0; -webkit-font-smoothing: antialiased; text-rendering: optimizeL
   --bg-elev: #161d2e;
 
   /* Text */
-  --text: #eef3fb;        /* stronger for legibility on dark */
+  --text: #eef3fb;         /* high-contrast text */
   --muted: #aeb8cc;
-  --placeholder: #c0c7d8; /* brighter placeholder for readability */
+  --placeholder: #c0c7d8;
 
   /* Brand */
-  --accent-1: #7c5cff;    /* purple */
-  --accent-2: #21d4fd;    /* cyan */
+  --accent-1: #7c5cff;
+  --accent-2: #21d4fd;
   --gold: #d4af37;
 
   /* Status */
-  --ok: #22c55e; --warn: #f59e0b; --danger: #ef4444; --info:#38bdf8;
+  --ok: #22c55e; --warn:#f59e0b; --danger:#ef4444; --info:#38bdf8;
 
   /* Effects */
   --ring: 0 0 0 3px rgba(124,92,255,.32);
@@ -43,7 +43,7 @@ body { margin: 0; -webkit-font-smoothing: antialiased; text-rendering: optimizeL
   --row-hover: rgba(124,92,255,.12);
 }
 
-/* ---------- Background FX (animated but subtle) ---------- */
+/* ---------- Background FX ---------- */
 body{
   color: var(--text);
   background:
@@ -148,6 +148,7 @@ label{ color:#d9e2f7; font-size:.95rem; }
 .form-group{ display:flex; flex-direction:column; gap:.4rem; }
 .form-group.full-width{ grid-column:1/-1 }
 
+/* Input fields */
 input[type="text"], input[type="date"], input[type="number"], input[type="password"], select,
 .form-control, .form-select{
   width:100%; padding:.8rem 1rem; border-radius: 12px;
@@ -156,14 +157,46 @@ input[type="text"], input[type="date"], input[type="number"], input[type="passwo
   color: var(--text);
   box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
 }
-::placeholder{ color: var(--placeholder); }  /* كان غامق — رفعناه */
+/* Placeholder brighter */
+::placeholder{ color: var(--placeholder); }
 
 input:focus, select:focus, .form-control:focus, .form-select:focus{
   outline:none; box-shadow: var(--ring); border-color: rgba(124,92,255,.55);
 }
 .form-actions{ display:flex; gap:.6rem; justify-content:flex-end; }
 
-/* ---------- Tables (High-contrast rows) ---------- */
+/* === Select dropdown FIX (better contrast across browsers) === */
+select, .form-select{ color-scheme: dark; }           /* forces dark popup on Chromium */
+select option, .form-select option{
+  background:#0f1624; color:var(--text);
+}
+select option[disabled]{ color:var(--muted); }
+
+/* Employee details contrast */
+.employee-details p{ color:#e9efff; }
+.employee-details strong{ color:#cfd9ff; }
+
+/* ---------- Tabs (Paie/Avances/Absences/Congés) ---------- */
+.tabs-container{ margin-top: 1rem; }
+.tabs-nav{ display:flex; gap:.5rem; margin-bottom:.75rem; flex-wrap:wrap; }
+.tab-link{
+  display:inline-flex; align-items:center; gap:.4rem;
+  padding:.6rem .9rem; border-radius:12px;
+  border:1px solid rgba(255,255,255,.14);
+  color:var(--muted);
+  background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+  text-decoration:none;
+  transition: box-shadow .25s ease, transform .06s ease, color .2s ease, background .2s ease;
+}
+.tab-link:hover{ color:var(--text); box-shadow: var(--shadow-1); transform: translateY(-1px); }
+.tab-link.active{
+  color:#fff;
+  background: linear-gradient(180deg, rgba(124,92,255,.28), rgba(33,212,253,.18));
+  border-color: rgba(124,92,255,.45);
+}
+.tab-content{ margin-top:.25rem; }
+
+/* ---------- Tables ---------- */
 .table-responsive{ overflow:auto; border-radius:14px; border:var(--border); }
 table{ width:100%; border-collapse:separate; border-spacing:0; color: var(--text); }
 thead th{
@@ -197,7 +230,7 @@ td.amount{ font-weight:800; }
 .alert{ border-radius:12px; border:var(--border); background: rgba(239,68,68,.14); color:#ffe0e0; padding:.9rem 1rem; }
 .no-data{ color: var(--muted); padding:.8rem; }
 
-/* ---------- Login (split hero + glass form) ---------- */
+/* ---------- Login ---------- */
 .login-container{
   min-height:100vh; display:grid; grid-template-columns: 1fr; gap:0;
   background:
@@ -205,9 +238,7 @@ td.amount{ font-weight:800; }
     radial-gradient(700px 600px at 10% 10%, rgba(124,92,255,.18), transparent 45%),
     var(--bg);
 }
-.login-wrap{
-  display:grid; grid-template-columns: 1fr; place-items:center; padding: 32px 16px;
-}
+.login-wrap{ display:grid; grid-template-columns: 1fr; place-items:center; padding: 32px 16px; }
 .login-card{
   width:min(460px, 92vw);
   background: linear-gradient(180deg, rgba(255,255,255,.12), rgba(255,255,255,.08));
@@ -247,5 +278,5 @@ td.amount{ font-weight:800; }
   .sidebar{ height:auto; }
 }
 
-/* Keep Bootstrap table rounding compatibility for mixed markup */
+/* Keep Bootstrap table rounding compatibility */
 .table{ border-radius: 12px; overflow:hidden; }
