@@ -3,20 +3,25 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ app_name }} – Connexion</title> {# Nom dynamique #}
+    <title>{{ app_name }} – Connexion</title>
+    {# --- MODIFIÉ : Police changée --- #}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
-     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-    <link rel="stylesheet" href="{{ request.url_for('static', path='styles.css') }}">
-    {# Styles pour la page de connexion (déplacés dans styles.css, mais gardés ici par sécurité) #}
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <style>
-      body.login-page {
+      body {
         background-color: #f0f2f5;
+        color: #333;
+        /* --- MODIFIÉ : Police changée --- */
+        font-family: 'Cormorant Garamond', serif;
         display: flex;
         align-items: center;
         justify-content: center;
         min-height: 100vh;
+        margin: 0;
+        line-height: 1.6;
+        font-size: 18px; /* Police serif plus grande */
       }
       .login-card {
         background: #ffffff;
@@ -27,12 +32,78 @@
         max-width: 450px;
         box-sizing: border-box;
       }
+      /* --- NOUVEAU : Style pour le logo --- */
+      .login-logo {
+        text-align: center;
+        margin-bottom: 20px;
+      }
+      .login-logo img {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        border: 4px solid #f0f2f5;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+      }
       .login-title {
-        font-size: 24px;
-        font-weight: 600;
+        font-size: 28px; /* Police serif plus grande */
+        font-weight: 700;
         margin: 0 0 25px 0;
         text-align: center;
         color: #1a202c;
+      }
+      .form-group {
+        margin-bottom: 20px;
+      }
+      label {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 16px;
+        font-weight: 600;
+        color: #4a5568;
+      }
+      select, input[type=password] {
+        width: 100%;
+        padding: 12px 15px;
+        border-radius: 8px;
+        border: 1px solid #cbd5e0;
+        background: #f7fafc;
+        color: #2d3748;
+        font-size: 17px;
+        font-family: 'Cormorant Garamond', serif; /* Hériter la police */
+        box-sizing: border-box;
+        transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+      }
+      select:focus, input[type=password]:focus {
+        outline: none;
+        border-color: #4a5fa2;
+        box-shadow: 0 0 0 3px rgba(74, 95, 162, 0.2);
+      }
+      .login-actions {
+        margin-top: 30px;
+        display: flex;
+        justify-content: center;
+      }
+      button {
+        background: #4a5fa2;
+        border: none;
+        color: #ffffff;
+        font-weight: 700; /* Police plus grasse */
+        padding: 12px 30px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 18px; /* Police plus grande */
+        font-family: 'Cormorant Garamond', serif; /* Hériter la police */
+        transition: background-color 0.2s ease-in-out, transform 0.1s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+      button:hover {
+        background-color: #3b4c8a;
+        transform: translateY(-1px);
+      }
+      button:active {
+           transform: translateY(0px);
       }
       .error-message {
         background-color: #fed7d7;
@@ -40,18 +111,21 @@
         padding: 12px 15px;
         border-radius: 8px;
         margin-bottom: 20px;
-        font-size: 14px;
+        font-size: 16px;
         text-align: center;
         border: 1px solid #f56565;
-        display: flex;
-        align-items: center;
-        gap: 10px;
       }
     </style>
   </head>
-  <body class="login-page"> {# Classe pour cibler la page de login #}
+  <body>
     <form class="login-card" method="post" action="{{ request.url_for('login_action') }}">
-      <h1 class="login-title">{{ app_name }} - Connexion</h1>
+      
+      {# --- NOUVEAU : Logo ajouté --- #}
+      <div class="login-logo">
+        <img src="{{ request.url_for('static', path='logo.png') }}" alt="Logo Bijouterie Zaher">
+      </div>
+
+      <h1 class="login-title">{{ app_name }}</h1>
 
       {% if error %}
           <div class="error-message">
@@ -74,8 +148,8 @@
         <input type="password" id="password" name="password" required />
       </div>
 
-      <div class="form-actions" style="justify-content: center;">
-        <button type="submit" class="btn btn-primary">
+      <div class="login-actions">
+        <button type="submit">
             <i class="fa-solid fa-right-to-bracket"></i> Se connecter
         </button>
       </div>
