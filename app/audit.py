@@ -1,13 +1,10 @@
 """
-Audit logging utilities.
-
-Provides functions to record actions taken in the system and to retrieve the
-latest audit log entries for display on the dashboard.
+Utilitaires de journalisation d'audit.
 """
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .models import AuditLog, Role
+from .models import AuditLog, Role # Assurer que Role est importé
 from .schemas import AuditOut
 
 
@@ -20,7 +17,7 @@ async def log(
     branch_id: int | None,
     details: str | None = None,
 ) -> None:
-    """Record an audit log entry."""
+    """Enregistrer une entrée dans le journal d'audit."""
     session.add(
         AuditLog(
             actor_id=actor_id,
@@ -37,35 +34,30 @@ async def log(
 async def latest(
     session: AsyncSession,
     limit: int = 50,
-    user_role: str | None = None, # <-- Ajouté
-    branch_id: int | None = None   # <-- Ajouté
+    user_role: str | None = None,
+    branch_id: int | None = None,
+    entity_types: list[str] | None = None # --- NOUVEAU: Filtre par type d'entité ---
 ) -> list[AuditOut]:
     """
     Retourne les entrées d'audit les plus récentes jusqu'à `limit`.
     Filtre par branch_id si l'utilisateur est un manager.
+    Filtre par entity_types si fourni (pour la page Paramètres).
     """
     stmt = select(AuditLog).order_by(AuditLog.created_at.desc())
 
-    # --- AJOUT DU FILTRAGE ---
-    # Si l'utilisateur est un manager et a un branch_id, filtrer les logs
+    # --- FILTRAGE PAR RÔLE (pour le tableau de bord) ---
     if user_role == Role.manager.value and branch_id is not None:
-        # On ne montre que les logs liés à son magasin OU les logs globaux (sans branch_id)
-        # OU les logs où il est l'acteur (actor_id)
-        stmt = stmt.where(
-            (AuditLog.branch_id == branch_id) |
-            (AuditLog.branch_id.is_(None)) |
-            (AuditLog.actor_id == session.info.get('user_id')) # Besoin de passer user_id ou récupérer autrement
-            # Alternative: Filtrer strictement par branch_id si c'est la règle métier
-            # stmt = stmt.where(AuditLog.branch_id == branch_id)
-        )
-    # L'admin (user_role == 'admin') voit tout, donc pas de filtre supplémentaire.
+        # Les managers ne voient que les logs de LEUR magasin
+        stmt = stmt.where(AuditLog.branch_id == branch_id)
+    # L'admin (user_role == 'admin') voit tout, donc pas de filtre de rôle.
+
+    # --- FILTRAGE PAR TYPE D'ENTITÉ (pour la page Paramètres) ---
+    if entity_types:
+        stmt = stmt.where(AuditLog.entity.in_(entity_types))
 
     # Appliquer la limite
     stmt = stmt.limit(limit)
-    # --- FIN DU FILTRAGE ---
 
     res = await session.execute(stmt)
-    # Passer user_id à la session info si besoin dans le filtre ci-dessus
-    # (Pour l'instant, le filtre actor_id est commenté car user_id n'est pas passé simplement ici)
 
     return [AuditOut.model_validate(x) for x in res.scalars().all()]
