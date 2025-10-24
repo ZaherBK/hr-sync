@@ -1,73 +1,80 @@
 /* =================================
-   THÈME BIJOUTERIE (Sombre + Or)
+   THÈME "MODERN SAAS" (Light)
    ================================= */
 
 :root {
-  /* Couleurs principales */
-  --bs-primary: #d4af37; /* Or */
-  --bs-primary-rgb: 212, 175, 55;
-  --bs-secondary: #aaaaaa; /* Argent/Gris */
-  --bs-secondary-rgb: 170, 170, 170;
-  
-  /* Palette sombre */
-  --bs-dark: #202020;
-  --bs-dark-rgb: 32, 32, 32;
-  --bs-body-bg: #282828;
-  --bs-body-color: #f0f0f0;
-  --bs-border-color: #444;
-  --bs-border-color-translucent: rgba(255, 255, 255, 0.15);
-
-  /* Polices */
-  --bs-body-font-family: 'Merriweather', serif;
-  --bs-body-font-weight: 400;
-  --bs-heading-font-family: 'Roboto', sans-serif;
-  --bs-heading-font-weight: 500;
-
-  /* Composants */
-  --sidebar-bg: var(--bs-dark);
-  --sidebar-link-color: #f0f0f0;
-  --sidebar-link-hover-bg: #3c3c3c;
-  --sidebar-link-active-color: var(--bs-primary);
-  
-  --bs-card-bg: #303030;
-  --bs-card-border-color: var(--bs-border-color);
-  --bs-list-group-bg: #303030;
-  --bs-list-group-border-color: var(--bs-border-color);
-  --bs-modal-content-bg: #303030;
-  --bs-modal-header-border-color: var(--bs-border-color);
-  --bs-modal-footer-border-color: var(--bs-border-color);
-
-  --bs-form-control-bg: #3a3a3a;
-  --bs-form-control-color: #f0f0f0;
-  --bs-form-control-border-color: #555;
-  --bs-form-select-bg: #3a3a3a;
-  --bs-form-select-color: #f0f0f0;
-  --bs-form-select-border-color: #555;
+  --bs-primary: #0d6efd; /* Bleu Bootstrap standard */
+  --bs-primary-rgb: 13, 110, 253;
+  --bs-secondary: #6c757d;
+  --bs-light: #f8f9fa;
+  --bs-light-rgb: 248, 249, 250;
+  --bs-dark: #212529;
+  --bs-font-sans-serif: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --bs-body-font-family: var(--bs-font-sans-serif);
+  --bs-body-bg: #f0f2f5; /* Fond gris très clair */
+  --bs-border-color: #dee2e6;
+  --bs-border-radius: 0.375rem; /* 6px */
+  --bs-border-radius-lg: 0.5rem; /* 8px */
+  --bs-box-shadow-sm: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+  --bs-box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
 }
 
 body {
-  font-family: var(--bs-body-font-family);
   background-color: var(--bs-body-bg);
-  color: var(--bs-body-color);
-  font-size: 0.9rem; /* Un peu plus petit pour la police serif */
-}
-
-h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {
-  font-family: var(--bs-heading-font-family);
-  font-weight: var(--bs-heading-font-weight);
-  color: var(--bs-primary); /* Titres en couleur or */
-}
-
-a {
-  color: var(--bs-primary);
-}
-a:hover {
-  color: #e7c86a; /* Or plus clair */
 }
 
 /* =================================
-   Composants
+   Connexion (Login)
    ================================= */
+.login-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background-color: var(--bs-body-bg);
+}
+
+.login-card {
+  width: 100%;
+  max-width: 420px;
+  padding: 2rem;
+  border: none;
+  border-radius: var(--bs-border-radius-lg);
+  box-shadow: var(--bs-box-shadow);
+}
+
+.login-card .form-control {
+  padding: 0.75rem 1rem;
+}
+
+.login-card .btn {
+  padding: 0.75rem 1rem;
+  font-weight: 600;
+}
+
+.login-logo {
+  max-height: 60px;
+  margin-bottom: 1.5rem;
+}
+
+/* =================================
+   Mise en page principale (Layout)
+   ================================= */
+
+/* --- Navbar (Haut) --- */
+.navbar {
+  background-color: #ffffff;
+  box-shadow: var(--bs-box-shadow-sm);
+  border-bottom: 1px solid var(--bs-border-color);
+}
+
+.navbar-brand {
+  font-weight: 600;
+  color: var(--bs-dark);
+}
+.navbar-brand img {
+  max-height: 30px;
+}
 
 /* --- Sidebar --- */
 .sidebar {
@@ -76,122 +83,132 @@ a:hover {
   bottom: 0;
   left: 0;
   z-index: 100;
-  padding: 48px 0 0; /* Espace pour la navbar */
-  box-shadow: 0 0 10px rgba(0,0,0,0.5);
-  background-color: var(--sidebar-bg);
+  padding: 56px 0 0; /* Hauteur de la navbar */
+  background-color: #ffffff;
+  border-right: 1px solid var(--bs-border-color);
 }
 
 .sidebar-sticky {
   position: relative;
   top: 0;
-  height: calc(100vh - 48px);
-  padding-top: .5rem;
+  height: calc(100vh - 56px);
+  padding-top: 1rem;
   overflow-x: hidden;
   overflow-y: auto;
 }
 
 .sidebar .nav-link {
   font-weight: 500;
-  color: var(--sidebar-link-color);
-  border-left: 3px solid transparent;
-  font-family: var(--bs-heading-font-family); /* Police Roboto pour la nav */
+  color: #333;
+  border-radius: var(--bs-border-radius);
+  margin: 0 0.5rem 0.125rem;
+  padding: 0.625rem 1rem;
 }
 .sidebar .nav-link .bi {
-  margin-right: 8px;
-  width: 16px;
+  margin-right: 10px;
+  width: 20px;
   text-align: center;
+  font-size: 1.1rem;
+  display: inline-block;
 }
 .sidebar .nav-link:hover {
-  background-color: var(--sidebar-link-hover-bg);
+  background-color: var(--bs-light);
+  color: var(--bs-primary);
 }
 .sidebar .nav-link.active {
-  color: var(--sidebar-link-active-color);
-  border-left-color: var(--bs-primary);
+  background-color: var(--bs-primary);
+  color: #ffffff;
 }
 
-/* --- Navbar (Haut) --- */
-.navbar {
-  background-color: var(--sidebar-bg) !important;
-  border-bottom: 1px solid var(--bs-border-color);
-}
-
-.navbar-brand {
-  color: var(--bs-primary) !important;
-  font-family: var(--bs-heading-font-family);
-  font-weight: 700;
-  font-size: 1.25rem;
-}
-
-/* Style pour le toggler mobile */
-.navbar-toggler {
-  border-color: rgba(255, 255, 255, 0.1);
-}
-.navbar-toggler-icon {
-  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba(212, 175, 55, 0.8)' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+.sidebar-heading {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  padding: 0.5rem 1rem;
+  margin-top: 1rem;
+  color: var(--bs-secondary);
 }
 
 /* --- Contenu principal --- */
 .main-content {
-  padding-top: 60px; /* Hauteur de la navbar */
+  padding-top: calc(56px + 1.5rem); /* Navbar + padding */
+  padding-bottom: 1.5rem;
+}
+
+/* =================================
+   Composants
+   ================================= */
+
+.card {
+  border: none;
+  border-radius: var(--bs-border-radius-lg);
+  box-shadow: var(--bs-box-shadow-sm);
+  background-color: #ffffff;
+}
+.card-header {
+  background-color: #ffffff;
+  border-bottom: 1px solid var(--bs-border-color);
+  font-weight: 600;
+  padding: 1.25rem 1.5rem;
+  border-top-left-radius: var(--bs-border-radius-lg);
+  border-top-right-radius: var(--bs-border-radius-lg);
+}
+.card-body {
+  padding: 1.5rem;
+}
+.card-title {
+  color: var(--bs-dark);
+  font-weight: 600;
+}
+
+.table {
+  --bs-table-bg: #ffffff;
+  --bs-table-border-color: var(--bs-border-color);
+  --bs-table-striped-bg: var(--bs-light);
+  --bs-table-hover-bg: #f5f5f5;
+  border-radius: var(--bs-border-radius);
+  overflow: hidden; /* Pour les coins arrondis */
+}
+.table thead th {
+  background-color: var(--bs-light);
+  border-bottom-width: 2px;
+  font-weight: 600;
+  color: var(--bs-secondary);
+  text-transform: uppercase;
+  font-size: 0.8rem;
+  letter-spacing: 0.5px;
+}
+/* Style pour les tables dans les cards */
+.card .table {
+  border-radius: 0;
+  box-shadow: none;
+}
+.card .table:first-child {
+  border-top-left-radius: var(--bs-border-radius-lg);
+  border-top-right-radius: var(--bs-border-radius-lg);
+}
+.card .table:last-child {
+  border-bottom-left-radius: var(--bs-border-radius-lg);
+  border-bottom-right-radius: var(--bs-border-radius-lg);
 }
 
 /* --- Formulaires --- */
-.form-control, .form-select {
-  background-color: var(--bs-form-control-bg);
-  color: var(--bs-form-control-color);
-  border-color: var(--bs-form-control-border-color);
+.form-label {
+  font-weight: 500;
 }
-.form-control::placeholder {
-  color: #888;
+.form-control, .form-select {
+  background-color: #ffffff;
+  border-color: var(--bs-border-color);
+  border-radius: var(--bs-border-radius);
 }
 .form-control:focus, .form-select:focus {
-  background-color: #444;
-  color: var(--bs-body-color);
   border-color: var(--bs-primary);
   box-shadow: 0 0 0 0.25rem rgba(var(--bs-primary-rgb), 0.25);
 }
-.form-control:disabled, .form-control[readonly] {
-    background-color: #444;
-    opacity: 0.7;
-}
-
-/* --- Cartes & Tables --- */
-.card, .list-group-item, .modal-content {
-  background-color: var(--bs-card-bg);
-  border-color: var(--bs-border-color);
-}
-.table {
-  --bs-table-color: var(--bs-body-color);
-  --bs-table-border-color: var(--bs-border-color);
-  --bs-table-striped-bg: rgba(255, 255, 255, 0.03);
-  --bs-table-hover-bg: rgba(255, 255, 255, 0.05);
-}
-.table-hover > tbody > tr:hover > * {
-  color: var(--bs-body-color);
-}
 
 /* --- Boutons --- */
-.btn-primary {
-  background-color: var(--bs-primary);
-  border-color: var(--bs-primary);
-  color: #222; /* Texte foncé sur bouton or */
-  font-weight: 700;
-  font-family: var(--bs-heading-font-family);
-}
-.btn-primary:hover, .btn-primary:focus {
-  background-color: #e7c86a;
-  border-color: #e7c86a;
-  color: #222;
-  box-shadow: 0 0 0 0.25rem rgba(var(--bs-primary-rgb), 0.5);
-}
-.btn-outline-secondary {
-    color: var(--bs-secondary);
-    border-color: var(--bs-secondary);
-    font-family: var(--bs-heading-font-family);
-}
-.btn-outline-secondary:hover {
-    background-color: var(--bs-secondary);
-    color: #222;
+.btn {
+  font-weight: 500;
+  border-radius: var(--bs-border-radius);
 }
 
 /* =================================
@@ -200,30 +217,27 @@ a:hover {
 
 /* Cacher le toggler sur PC */
 @media (min-width: 768px) {
-  .main-content {
-    /* Largeur de la sidebar */
-    padding-left: calc(var(--bs-gutter-x) * .5 + 250px); 
-    padding-right: calc(var(--bs-gutter-x) * .5);
+  .navbar-toggler {
+    display: none;
   }
 }
 
 /* Gérer la sidebar sur mobile */
 @media (max-width: 767.98px) {
-  .main-content {
-    padding-left: calc(var(--bs-gutter-x) * .5);
-    padding-right: calc(var(--bs-gutter-x) * .5);
-  }
   .sidebar {
-    width: 250px;
-    /* Bootstrap "collapse" gère le show/hide via JS */
+    width: 280px;
+    top: 56px; /* S'affiche sous la navbar */
+    padding-top: 0;
+    z-index: 1020; /* S'affiche au-dessus du contenu */
   }
-  
+  .sidebar-sticky {
+    height: calc(100vh - 56px);
+  }
+  .main-content {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
   .navbar-brand {
-    margin-left: 10px;
     width: auto;
-  }
-  
-  .navbar .navbar-nav {
-      flex-direction: row !important;
   }
 }
