@@ -58,7 +58,7 @@ class EmployeeBase(BaseModel):
 
     @field_validator('cin')
     def validate_cin(cls, v):
-        if v is not None and v is not "" and not v.isdigit():
+        if v is not None and v != "" and not v.isdigit():
             raise ValueError('Le numéro CIN doit être composé uniquement de chiffres.')
         return v
     
