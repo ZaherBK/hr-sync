@@ -1,50 +1,28 @@
 {% extends "base.html" %}
-
 {% block content %}
-<h2 class="page-title"><i class="fa-solid fa-chart-line"></i> Tableau de bord</h2>
 
-<p>Bienvenue, {{ user.full_name }} !</p>
+<h2 class="page-title"><i class="fa-solid fa-gem"></i> Tableau de bord</h2>
+<p class="hint">Bienvenue, {{ user.full_name }} ✨</p>
 
-<div class="quick-links">
+<div class="card ranked-card quick-links">
   <h3>Accès Rapide</h3>
   <div class="link-buttons">
-    <a href="{{ request.url_for('employees_page') }}" class="btn btn-primary">
-        <i class="fa-solid fa-users"></i> Gérer les Employés
-    </a>
-    {# --- MODIFIÉ : Renommé en "Absences" --- #}
-    <a href="{{ request.url_for('attendance_page') }}" class="btn btn-secondary">
-        <i class="fa-regular fa-calendar-xmark"></i> Gérer les Absences
-    </a>
-     {% if user.role in ['admin', 'manager'] %}
-    <a href="{{ request.url_for('deposits_page') }}" class="btn btn-secondary">
-        <i class="fa-solid fa-money-bill-transfer"></i> Gérer les Avances
-    </a>
-    {% endif %}
-     {% if user.role == 'admin' %}
-    <a href="{{ request.url_for('leaves_page') }}" class="btn btn-secondary">
-        <i class="fa-solid fa-umbrella-beach"></i> Gérer les Congés
-    </a>
-    <a href="{{ request.url_for('pay_employee_page') }}" class="btn btn-success"> {# Nouveau bouton Payer #}
-        <i class="fa-solid fa-hand-holding-dollar"></i> Payer un Employé
-    </a>
-    {% endif %}
+    <a href="{{ request.url_for('employees_page') }}" class="btn btn-gold"><i class="fa-solid fa-users"></i> Employés</a>
+    <a href="{{ request.url_for('attendance_page') }}" class="btn btn-secondary"><i class="fa-regular fa-calendar-xmark"></i> Absences</a>
+    <a href="{{ request.url_for('deposits_page') }}" class="btn btn-secondary"><i class="fa-solid fa-money-bill-transfer"></i> Avances</a>
+    <a href="{{ request.url_for('leaves_page') }}" class="btn btn-secondary"><i class="fa-solid fa-umbrella-beach"></i> Congés</a>
+    <a href="{{ request.url_for('pay_employee_page') }}" class="btn btn-success"><i class="fa-solid fa-hand-holding-dollar"></i> Payer</a>
   </div>
 </div>
 
-{# --- MODIFIÉ : Section visible par l'admin uniquement --- #}
 {% if user.role == 'admin' %}
-<div class="activity-log">
+<div class="table-card ranked-card">
   <h3>Activité Récente (Admin)</h3>
   {% if activity %}
   <div class="table-responsive">
     <table>
       <thead>
-        <tr>
-          <th>Quand</th>
-          <th>Action</th>
-          <th>Entité</th>
-          <th>Détails</th>
-        </tr>
+        <tr><th>Quand</th><th>Action</th><th>Entité</th><th>Détails</th></tr>
       </thead>
       <tbody>
         {% for a in activity %}
@@ -59,9 +37,8 @@
     </table>
   </div>
   {% else %}
-    <p class="no-data">Aucune activité récente à afficher.</p>
+  <p class="no-data">Aucune activité récente à afficher.</p>
   {% endif %}
 </div>
-{% endif %} {# --- Fin de la condition admin --- #}
-
+{% endif %}
 {% endblock %}
