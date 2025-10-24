@@ -1,9 +1,5 @@
 """
 Modèles ORM de la base de données pour Bijouterie Zaher App.
-
-Définit les modèles SQLAlchemy pour les utilisateurs, magasins, employés, présences,
-congés, avances (dépôts) et journaux d'audit. Les classes Enum capturent les rôles possibles
-et les types pour la présence et les congés.
 """
 from __future__ import annotations
 
@@ -19,7 +15,7 @@ from sqlalchemy import (
     String,
     Text,
     func,
-    Numeric, # Ajouté pour le montant des avances
+    Numeric, # Pour les montants
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -27,9 +23,8 @@ from .db import Base
 
 
 class Role(str, enum.Enum):
-    admin = "admin"      # Propriétaire / Admin
-    manager = "manager"  # Manager de magasin
-    # staff = "staff"    # (Commenté - Pas utilisé actuellement mais peut être ajouté plus tard)
+    admin = "admin"
+    manager = "manager"
 
 
 class User(Base):
@@ -39,41 +34,46 @@ class User(Base):
     full_name: Mapped[str] = mapped_column(String(255))
     hashed_password: Mapped[str] = mapped_column(String(255))
     role: Mapped[Role] = mapped_column(Enum(Role), default=Role.manager)
-    branch_id: Mapped[int | None] = mapped_column(ForeignKey("branches.id"), nullable=True) # ID du magasin associé
+    branch_id: Mapped[int | None] = mapped_column(ForeignKey("branches.id"), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     # Relations
-    branch = relationship("Branch", back_populates="users") # Relation vers le magasin
+    branch = relationship("Branch", back_populates="users")
 
 
-class Branch(Base): # Représente un magasin (Shop)
+class Branch(Base): # Magasin
     __tablename__ = "branches"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    name: Mapped[str] = mapped_column(String(100), unique=True) # Nom du magasin (ex: "Magasin Ariana")
-    city: Mapped[str] = mapped_column(String(120)) # Ville
+    name: Mapped[str] = mapped_column(String(100), unique=True)
+    city: Mapped[str] = mapped_column(String(120))
     # Relations
-    users = relationship("User", back_populates="branch") # Utilisateurs (managers) dans ce magasin
-    employees = relationship("Employee", back_populates="branch") # Employés dans ce magasin
+    users = relationship("User", back_populates="branch")
+    employees = relationship("Employee", back_populates="branch")
 
 
 class Employee(Base):
     __tablename__ = "employees"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    first_name: Mapped[str] = mapped_column(String(120)) # Prénom
-    last_name: Mapped[str] = mapped_column(String(120)) # Nom
-    cin: Mapped[str | None] = mapped_column(String(20), unique=True, nullable=True, index=True) # Numéro CIN (Carte d'Identité Nationale) - Ajouté
-    position: Mapped[str] = mapped_column(String(120)) # Poste occupé
-    branch_id: Mapped[int] = mapped_column(ForeignKey("branches.id")) # Magasin associé
-    active: Mapped[bool] = mapped_column(Boolean, default=True) # Statut (Actif/Inactif)
+    first_name: Mapped[str] = mapped_column(String(120))
+    last_name: Mapped[str] = mapped_column(String(120))
+    cin: Mapped[str | None] = mapped_column(String(20), unique=True, nullable=True, index=True)
+    position: Mapped[str] = mapped_column(String(120))
+    branch_id: Mapped[int] = mapped_column(ForeignKey("branches.id"))
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+    
+    # --- NOUVEAU CHAMP : Salaire ---
+    salary: Mapped[float | None] = mapped_column(Numeric(10, 2), nullable=True) # Salaire de base
+    
     # Relations
     branch = relationship("Branch", back_populates="employees")
     attendances = relationship("Attendance", back_populates="employee")
     leaves = relationship("Leave", back_populates="employee")
-    deposits = relationship("Deposit", back_populates="employee") # Relation vers les avances - Ajouté
+    deposits = relationship("Deposit", back_populates="employee")
+    pay_history = relationship("Pay", back_populates="employee") # --- NOUVELLE RELATION ---
 
 
 class AttendanceType(str, enum.Enum):
-    present = "present" # Présent
-    absent = "absent"   # Absent
+    present = "present"
+    absent = "absent"   # On garde "present" au cas où, mais on n'utilisera que "absent"
 
 
 class Attendance(Base):
@@ -81,54 +81,73 @@ class Attendance(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     employee_id: Mapped[int] = mapped_column(ForeignKey("employees.id"))
     date: Mapped[date] = mapped_column(Date, index=True)
-    atype: Mapped[AttendanceType] = mapped_column(Enum(AttendanceType)) # Type (Présent/Absent)
-    note: Mapped[str | None] = mapped_column(Text, nullable=True) # Note
-    created_by: Mapped[int] = mapped_column(ForeignKey("users.id")) # ID de l'utilisateur qui a créé l'enregistrement
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now()) # Date de création
+    atype: Mapped[AttendanceType] = mapped_column(Enum(AttendanceType)) # Type (devrait être 'absent')
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_by: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     # Relations
     employee = relationship("Employee", back_populates="attendances")
 
 
 class LeaveType(str, enum.Enum):
-    paid = "paid"     # Payé
-    unpaid = "unpaid" # Non payé
-    sick = "sick"     # Maladie
+    paid = "paid"
+    unpaid = "unpaid"
+    sick = "sick"
 
 
-class Leave(Base): # Représente un congé (Vacation)
+class Leave(Base): # Congé
     __tablename__ = "leaves"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     employee_id: Mapped[int] = mapped_column(ForeignKey("employees.id"))
-    start_date: Mapped[date] = mapped_column(Date) # Date de début
-    end_date: Mapped[date] = mapped_column(Date)   # Date de fin
-    ltype: Mapped[LeaveType] = mapped_column(Enum(LeaveType)) # Type de congé
-    approved: Mapped[bool] = mapped_column(Boolean, default=False) # Approuvé ou non
-    created_by: Mapped[int] = mapped_column(ForeignKey("users.id")) # Créé par
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now()) # Date de création
+    start_date: Mapped[date] = mapped_column(Date)
+    end_date: Mapped[date] = mapped_column(Date)
+    ltype: Mapped[LeaveType] = mapped_column(Enum(LeaveType))
+    approved: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_by: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     # Relations
     employee = relationship("Employee", back_populates="leaves")
 
-# --- NOUVEAU MODÈLE : Deposit (Avance) ---
-class Deposit(Base):
+
+class Deposit(Base): # Avance
     __tablename__ = "deposits"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     employee_id: Mapped[int] = mapped_column(ForeignKey("employees.id"))
-    amount: Mapped[float] = mapped_column(Numeric(10, 2)) # Montant de l'avance (ex: 1250.75)
-    date: Mapped[date] = mapped_column(Date, index=True) # Date de l'avance
-    note: Mapped[str | None] = mapped_column(Text, nullable=True) # Note/Description
-    created_by: Mapped[int] = mapped_column(ForeignKey("users.id")) # Créé par
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now()) # Date de création
+    amount: Mapped[float] = mapped_column(Numeric(10, 2))
+    date: Mapped[date] = mapped_column(Date, index=True)
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_by: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     # Relations
     employee = relationship("Employee", back_populates="deposits")
+
+# --- NOUVEAU MODÈLE : Paie (Pay) ---
+class PayType(str, enum.Enum):
+    hebdomadaire = "hebdomadaire" # Hebdomadaire (par semaine)
+    mensuel = "mensuel"       # Mensuel (par mois)
+
+class Pay(Base):
+    __tablename__ = "pay_history"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    employee_id: Mapped[int] = mapped_column(ForeignKey("employees.id"))
+    amount: Mapped[float] = mapped_column(Numeric(10, 2)) # Montant payé
+    date: Mapped[date] = mapped_column(Date, index=True) # Date du paiement
+    pay_type: Mapped[PayType] = mapped_column(Enum(PayType)) # Type de paie
+    note: Mapped[str | None] = mapped_column(Text, nullable=True) # Note/Description
+    created_by: Mapped[int] = mapped_column(ForeignKey("users.id")) # Payé par
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    # Relations
+    employee = relationship("Employee", back_populates="pay_history")
 # --- FIN DU NOUVEAU MODÈLE ---
+
 
 class AuditLog(Base):
     __tablename__ = "audit_logs"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    actor_id: Mapped[int] = mapped_column(ForeignKey("users.id")) # Qui a fait l'action
-    action: Mapped[str] = mapped_column(String(120)) # Type d'action (create, update, delete, approve)
-    entity: Mapped[str] = mapped_column(String(120)) # Entité concernée (employee, leave, deposit...)
-    entity_id: Mapped[int | None] # ID de l'entité
-    branch_id: Mapped[int | None] = mapped_column(ForeignKey("branches.id"), nullable=True) # Magasin concerné (si applicable)
-    details: Mapped[str | None] = mapped_column(Text, nullable=True) # Détails supplémentaires
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now()) # Quand l'action a eu lieu
+    actor_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    action: Mapped[str] = mapped_column(String(120))
+    entity: Mapped[str] = mapped_column(String(120))
+    entity_id: Mapped[int | None]
+    branch_id: Mapped[int | None] = mapped_column(ForeignKey("branches.id"), nullable=True)
+    details: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
