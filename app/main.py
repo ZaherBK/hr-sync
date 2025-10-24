@@ -183,7 +183,4 @@ async def clear_transaction_logs(request: Request):
 
 # In your main app file (e.g., main.py or app.py)
 
-@app.get("/")
-def read_root():
-    # This endpoint is just to confirm the API is running.
-    return {"status": "ok", "message": "Welcome to Bijouterie Zaher API"}
+
