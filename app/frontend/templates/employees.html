@@ -26,14 +26,16 @@
         <input type="text" id="position" name="position" required placeholder="Ex: Vendeur, Gérant, etc.">
       </div>
     </div>
-    {# --- NOUVELLE LIGNE : Salaire et Magasin --- #}
     <div class="form-row">
+      {# --- PERMISSION : Champ Salaire visible par l'admin seulement --- #}
+      {% if user.role == 'admin' %}
       <div class="form-group">
         <label for="salary">Salaire de Base (TND)</label>
         <input type="text" id="salary" name="salary" placeholder="Ex: 1200.00"
                pattern="^\d+([.,]\d{1,2})?$"
                title="Montant positif, ex: 1200 ou 1200.50">
       </div>
+      {% endif %}
       <div class="form-group">
         <label for="branch_id">Magasin</label>
         {% if user.role == 'manager' and manager_branch_id %}
@@ -74,10 +76,16 @@
               <th>Nom</th>
               <th>N° CIN</th>
               <th>Poste</th>
-              <th>Salaire (TND)</th> {# --- NOUVELLE COLONNE --- #}
+              {# --- PERMISSION : Colonne Salaire visible par l'admin seulement --- #}
+              {% if user.role == 'admin' %}
+              <th>Salaire (TND)</th>
+              {% endif %}
               <th>Magasin</th>
               <th>Statut</th>
-              <th>Actions</th> {# --- NOUVELLE COLONNE --- #}
+              {# --- PERMISSION : Colonne Actions visible par l'admin seulement --- #}
+              {% if user.role == 'admin' %}
+              <th>Actions</th>
+              {% endif %}
             </tr>
           </thead>
           <tbody>
@@ -88,10 +96,12 @@
               <td>{{ e.last_name }}</td>
               <td>{{ e.cin or '-' }}</td>
               <td>{{ e.position }}</td>
-              {# --- NOUVELLE CELLULE : Salaire --- #}
+              {# --- PERMISSION : Cellule Salaire visible par l'admin seulement --- #}
+              {% if user.role == 'admin' %}
               <td class="amount">
                 {% if e.salary %}{{ "%.2f"|format(e.salary|float) }}{% else %}-{% endif %}
               </td>
+              {% endif %}
               <td>
                 {% for b in branches %}
                   {% if b.id == e.branch_id %}
@@ -106,14 +116,14 @@
                   <span class="badge status-inactive">Inactif</span>
                 {% endif %}
               </td>
-              {# --- NOUVELLE CELLULE : Bouton Détails --- #}
+              {# --- PERMISSION : Cellule Actions visible par l'admin seulement --- #}
+              {% if user.role == 'admin' %}
               <td>
-                {% if user.role == 'admin' %}
                 <a href="{{ request.url_for('employee_report_index') }}?employee_id={{ e.id }}" class="btn btn-primary btn-sm">
                   <i class="fa-solid fa-eye"></i> Détails
                 </a>
-                {% endif %}
               </td>
+              {% endif %}
             </tr>
             {% endfor %}
           </tbody>
