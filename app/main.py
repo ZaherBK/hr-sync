@@ -158,9 +158,9 @@ async def login_page(request: Request):
 @app.post("/login", name="login_action")
 async def login_action(
     request: Request, 
-    db: AsyncSession = Depends(get_db), 
     username: str = Form(...), 
-    password: str = Form(...)
+    password: str = Form(...),
+    db: AsyncSession = Depends(get_db) 
 ):
     """Traite la soumission du formulaire de connexion."""
     user = await authenticate_user(db, username, password)
@@ -232,11 +232,11 @@ async def employees_page(request: Request, db: AsyncSession = Depends(get_db)):
 @app.post("/employees/create", name="employees_create")
 async def employees_create(
     request: Request,
-    db: AsyncSession = Depends(get_db),
     first_name: Annotated[str, Form()],
     last_name: Annotated[str, Form()],
     position: Annotated[str, Form()],
     branch_id: Annotated[int, Form()],
+    db: AsyncSession = Depends(get_db),
     cin: Annotated[str, Form()] = None,
     salary: Annotated[Decimal, Form()] = None
 ):
@@ -317,9 +317,9 @@ async def attendance_page(request: Request, db: AsyncSession = Depends(get_db)):
 @app.post("/attendance/create", name="attendance_create")
 async def attendance_create(
     request: Request,
-    db: AsyncSession = Depends(get_db),
     employee_id: Annotated[int, Form()],
     date: Annotated[dt_date, Form()],
+    db: AsyncSession = Depends(get_db),
     note: Annotated[str, Form()] = None
 ):
     """Enregistre une nouvelle absence."""
@@ -389,10 +389,10 @@ async def deposits_page(request: Request, db: AsyncSession = Depends(get_db)):
 @app.post("/deposits/create", name="deposits_create")
 async def deposits_create(
     request: Request,
-    db: AsyncSession = Depends(get_db),
     employee_id: Annotated[int, Form()],
     amount: Annotated[Decimal, Form()],
     date: Annotated[dt_date, Form()],
+    db: AsyncSession = Depends(get_db),
     note: Annotated[str, Form()] = None
 ):
     """Enregistre une nouvelle avance."""
@@ -454,11 +454,11 @@ async def leaves_page(request: Request, db: AsyncSession = Depends(get_db)):
 @app.post("/leaves/create", name="leaves_create")
 async def leaves_create(
     request: Request,
-    db: AsyncSession = Depends(get_db),
     employee_id: Annotated[int, Form()],
     start_date: Annotated[dt_date, Form()],
     end_date: Annotated[dt_date, Form()],
-    ltype: Annotated[LeaveType, Form()]
+    ltype: Annotated[LeaveType, Form()],
+    db: AsyncSession = Depends(get_db)
 ):
     """Crée une demande de congé (Admin seulement)."""
     user = _get_user_from_session(request)
@@ -601,11 +601,11 @@ async def pay_employee_page(request: Request, db: AsyncSession = Depends(get_db)
 @app.post("/pay-employee", name="pay_employee_action")
 async def pay_employee_action(
     request: Request,
-    db: AsyncSession = Depends(get_db),
     employee_id: Annotated[int, Form()],
     amount: Annotated[Decimal, Form()],
     date: Annotated[dt_date, Form()],
     pay_type: Annotated[PayType, Form()],
+    db: AsyncSession = Depends(get_db),
     note: Annotated[str, Form()] = None
 ):
     """Enregistre un nouveau paiement (Admin seulement)."""
