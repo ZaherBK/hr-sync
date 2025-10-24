@@ -140,13 +140,21 @@ async def home(request: Request, db: AsyncSession = Depends(get_db)):
     if not user:
         return RedirectResponse(request.url_for('login_page'), status_code=status.HTTP_302_FOUND)
 
-    # Récupérer les données du tableau de bord (exemple)
-    # Vous devez remplacer cela par votre propre logique
+    # --- CORRECTION ---
+    # Passez les arguments par mot-clé au lieu de l'objet utilisateur entier.
+    # La fonction 'latest' utilise ces arguments pour filtrer les journaux.
+    latest_logs = await latest(
+        db, 
+        user_role=user.get("role"), 
+        branch_id=user.get("branch_id")
+    )
+    # --- FIN DE LA CORRECTION ---
+
     context = {
         "request": request,
         "user": user,
         "app_name": APP_NAME,
-        "latest_logs": await latest(db, user) # Exemple
+        "latest_logs": latest_logs # Utiliser la variable corrigée
     }
     return templates.TemplateResponse("dashboard.html", context)
 
