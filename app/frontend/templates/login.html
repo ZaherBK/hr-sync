@@ -32,9 +32,15 @@
                 {% endif %}
                 
                 <form action="{{ url_for('login_action') }}" method="POST">
+                    
                     <div class="form-floating mb-3">
-                        <input type="email" class="form-control" id="username" name="username" placeholder="nom@exemple.com" required>
-                        <label for="username">Adresse e-mail</label>
+                        <select class="form-select" id="username" name="username" required>
+                            <option value="" disabled selected>-- Sélectionnez votre compte --</option>
+                            <option value="zaher@local">ZAHER (Admin)</option>
+                            <option value="ariana@local">ARIANA (Manager)</option>
+                            <option value="nabeul@local">NABEUL (Manager)</option>
+                        </select>
+                        <label for="username">Compte utilisateur</label>
                     </div>
                     <div class="form-floating mb-3">
                         <input type="password" class="form-control" id="password" name="password" placeholder="Mot de passe" required>
