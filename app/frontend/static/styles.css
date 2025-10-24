@@ -166,7 +166,7 @@ input:focus, select:focus, .form-control:focus, .form-select:focus{
 .form-actions{ display:flex; gap:.6rem; justify-content:flex-end; }
 
 /* === Select dropdown FIX (better contrast across browsers) === */
-select, .form-select{ color-scheme: dark; }           /* forces dark popup on Chromium */
+select, .form-select { color: #f8faff !important; }           /* forces dark popup on Chromium */
 select option, .form-select option{
   background:#0f1624; color:var(--text);
 }
@@ -280,3 +280,28 @@ td.amount{ font-weight:800; }
 
 /* Keep Bootstrap table rounding compatibility */
 .table{ border-radius: 12px; overflow:hidden; }
+
+/* ---------- Tab transition (fade + glow) ---------- */
+.tab-content {
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(6px);
+  transition: opacity .35s ease, transform .35s ease;
+}
+.tab-content.active {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+/* Add glow around active tab link */
+.tab-link.active {
+  box-shadow: 0 0 15px rgba(124,92,255,.45);
+}
+
+/* Slight gold accent for detail titles */
+.employee-details p strong {
+  color: var(--gold);
+  text-shadow: 0 0 6px rgba(212,175,55,.25);
+}
+
