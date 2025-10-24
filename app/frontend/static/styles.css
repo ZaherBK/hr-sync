@@ -361,6 +361,60 @@ td.details {
   vertical-align: middle;
 }
 
+/* --- NOUVEAU : Styles pour les onglets (Tabs) --- */
+.tabs-container {
+    margin-bottom: 30px;
+}
+.tabs-nav {
+    display: flex;
+    flex-wrap: wrap;
+    border-bottom: 1px solid #dee2e6;
+    margin-bottom: 0; /* Important: colle au .tab-content */
+}
+.tabs-nav .tab-link {
+    padding: 10px 18px;
+    font-weight: 500;
+    color: #6c757d; /* Gris par défaut */
+    border: 1px solid transparent;
+    border-bottom: none;
+    margin-bottom: -1px; /* Superposer la bordure du bas */
+    border-radius: 6px 6px 0 0;
+    position: relative;
+    background-color: #f1f3f5;
+}
+.tabs-nav .tab-link:hover {
+    color: #343a40;
+    background-color: #f8f9fa;
+    text-decoration: none;
+}
+.tabs-nav .tab-link.active {
+    color: #4a5fa2; /* Couleur active */
+    border-color: #dee2e6 #dee2e6 #ffffff; /* Bordures sauf en bas */
+    background-color: #ffffff; /* Fond blanc */
+}
+.tab-content {
+    /* La .card gère déjà la plupart des styles */
+    border-top-left-radius: 0; /* Arrondi pour le premier onglet */
+    margin-top: 0; /* Coller à la navigation */
+    border-top: 1px solid #dee2e6;
+}
+
+
+/* --- Détails de l'employé (page rapport) --- */
+.employee-details p {
+    margin-bottom: 8px;
+    font-size: 1.1em;
+}
+.employee-details p strong {
+    color: #495057;
+    min-width: 150px;
+    display: inline-block;
+}
+
+/* --- Autres --- */
+.quick-links { margin-bottom: 30px; }
+/* ... (le reste de vos styles .quick-links, .no-data, @media, etc. restent ici) ... */
+
 /* Statuts Employé */
 .status-active { background-color: #d1e7dd; color: #0f5132; border: 1px solid #a3cfbb;}
 .status-inactive { background-color: #f8d7da; color: #842029; border: 1px solid #f1aeb5;}
