@@ -50,7 +50,6 @@
               <th>#</th>
               <th>Employé</th>
               <th>Date</th>
-              <th>Type</th>
               <th>Note</th>
               <th>Enregistré le</th>
             </tr>
@@ -70,13 +69,6 @@
                   {{ found_employee.name }}
               </td>
               <td>{{ a.date.strftime('%Y-%m-%d') }}</td>
-              <td>
-                  {% if a.atype == 'absent' %}
-                      <span class="badge status-absent">Absent</span>
-                  {% else %}
-                       <span class="badge status-present">{{ a.atype.value }}</span>
-                  {% endif %}
-              </td>
               <td>{{ a.note or '-' }}</td>
               <td class="timestamp">{{ a.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
             </tr>
