@@ -8,7 +8,49 @@ from decimal import Decimal
 from pydantic import BaseModel, EmailStr, Field, field_validator, ConfigDict
 
 # Importer les Enums depuis models.py, y compris PayType
-from .models import Role, AttendanceType, LeaveType, PayType
+# --- MODIFIÉ : Role n'est plus un Enum ---
+from .models import AttendanceType, LeaveType, PayType
+# --- FIN MODIFIÉ ---
+
+
+# --- NOUVEAUX SCHÉMAS : Role ---
+class RoleBase(BaseModel):
+    name: str
+    is_admin: bool = False
+    can_manage_users: bool = False
+    can_manage_roles: bool = False
+    can_manage_branches: bool = False
+    can_view_settings: bool = False
+    can_clear_logs: bool = False
+    can_manage_employees: bool = False
+    can_view_reports: bool = False
+    can_manage_pay: bool = False
+    can_manage_absences: bool = False
+    can_manage_leaves: bool = False
+    can_manage_deposits: bool = False
+
+class RoleCreate(RoleBase):
+    pass
+
+class RoleUpdate(BaseModel):
+    name: Optional[str] = None
+    is_admin: Optional[bool] = None
+    can_manage_users: Optional[bool] = None
+    can_manage_roles: Optional[bool] = None
+    can_manage_branches: Optional[bool] = None
+    can_view_settings: Optional[bool] = None
+    can_clear_logs: Optional[bool] = None
+    can_manage_employees: Optional[bool] = None
+    can_view_reports: Optional[bool] = None
+    can_manage_pay: Optional[bool] = None
+    can_manage_absences: Optional[bool] = None
+    can_manage_leaves: Optional[bool] = None
+    can_manage_deposits: Optional[bool] = None
+
+class RoleOut(RoleBase):
+    id: int
+    model_config = ConfigDict(from_attributes=True)
+# --- FIN NOUVEAUX SCHÉMAS ---
 
 
 # --- Schémas Utilisateur ---
@@ -19,7 +61,9 @@ class Token(BaseModel):
 class UserBase(BaseModel):
     email: EmailStr
     full_name: str
-    role: Role
+    # --- MODIFIÉ ---
+    role_id: int
+    # --- FIN MODIFIÉ ---
     branch_id: Optional[int] = None
     is_active: bool = True
 
@@ -28,6 +72,9 @@ class UserCreate(UserBase):
 
 class UserOut(UserBase):
     id: int
+    # --- AJOUTÉ : Inclure les infos du rôle ---
+    role: RoleOut
+    # --- FIN AJOUTÉ ---
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -62,7 +109,7 @@ class EmployeeBase(BaseModel):
             raise ValueError('Le numéro CIN doit être composé uniquement de chiffres.')
         return v
     
-    @field_validator('salary')
+    @field_control('salary')
     def validate_salary(cls, v):
         if v is not None and v < 0:
             raise ValueError('Le salaire doit être un montant positif.')
