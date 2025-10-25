@@ -15,7 +15,7 @@
   </div>
 </div>
 
-{% if user.role == 'admin' %}
+{% if user.permissions.is_admin %}
 <div class="table-card ranked-card">
   <h3>Activité Récente (Admin)</h3>
   {% if activity %}
