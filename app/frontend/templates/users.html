@@ -26,9 +26,9 @@
           <td class="details"><strong>{{ u.full_name }}</strong></td>
           <td>{{ u.email }}</td>
           <td>
-            {% if u.role %}
-              <span class="badge {% if u.role.is_admin %}status-inactive{% else %}action-approve{% endif %}">
-                {{ u.role.name }}
+            {% if u.permissions %}
+              <span class="badge {% if u.permissions.is_admin %}status-inactive{% else %}action-approve{% endif %}">
+                {{ u.permissions.name }}
               </span>
             {% else %}
               <span class="badge status-inactive">Aucun Rôle</span>
@@ -138,7 +138,7 @@
                     <label for="role_id">Rôle</label>
                     <select name="role_id" class="form-select" required>
                       {% for role in roles %}
-                      <option value="{{ role.id }}" {% if u.role_id == role.id %}selected{% endif %}>{{ role.name }}</option>
+                      <option value="{{ role.id }}" {% if u.permissions_id == role.id %}selected{% endif %}>{{ role.name }}</option>
                       {% endfor %}
                     </select>
                   </div>
