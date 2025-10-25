@@ -41,9 +41,9 @@
             <label for="username" class="form-label">Compte utilisateur</label>
             <select class="form-select" id="username" name="username" required>
               <option value="" disabled selected>-- Sélectionnez votre compte --</option>
-              <option value="zaher@local">ZAHER (Admin)</option>
-              <option value="ariana@local">ARIANA (Manager)</option>
-              <option value="nabeul@local">NABEUL (Manager)</option>
+              {% for u in users %}
+                <option value="{{ u.email }}">{{ u.full_name }}</option>
+              {% endfor %}
             </select>
           </div>
 
