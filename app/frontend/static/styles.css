@@ -43,45 +43,90 @@ body { margin: 0; -webkit-font-smoothing: antialiased; text-rendering: optimizeL
   --row-hover: rgba(124,92,255,.12);
 }
 
-/* ==== Light mode – Comfort fix (softer background, better contrast) ==== */
-
-/* 1) softer palette */
+/* =========================
+   AURORA LUXE — LIGHT MODE
+   ========================= */
 html[data-theme='light']{
-  --bg: #eef2f7;            /* بدل #f6f8ff */
-  --bg-soft: #ffffff;
+  /* —— Palette —— */
+  --bg: #eff3f9;              /* خلفية رئيسية مريحة */
+  --bg-soft: #ffffff;          /* بطاقات ومساحات مرتفعة */
   --bg-elev: #ffffff;
 
-  --text: #0b1220;          /* نص أغمق بشوي */
-  --muted: #5a6478;
-  --placeholder: #77839a;
+  --text: #0b1220;             /* نص أساسي */
+  --muted: #667085;            /* نص ثانوي */
+  --placeholder: #8a94a8;      /* Placeholder */
 
-  --glass: rgba(0,0,0,.03); /* زجاجي أخف */
-  --glass-2: rgba(0,0,0,.05);
-  --border: 1px solid rgba(0,0,0,.10);
+  /* Brand */
+  --accent-1: #7c5cff;         /* بنفسجي */
+  --accent-2: #21d4fd;         /* سماوي */
+  --gold: #d4af37;
 
-  --row-stripe: rgba(0,0,0,.025);
+  /* Effects */
+  --ring: 0 0 0 3px rgba(124,92,255,.28);
+  --glass: rgba(0,0,0,.03);
+  --glass-2: rgba(0,0,0,.06);
+  --border: 1px solid rgba(16,24,40,.10);
+  --shadow-1: 0 8px 20px rgba(16,24,40,.08);
+  --shadow-2: 0 18px 42px rgba(16,24,40,.12);
+
+  /* Tables */
+  --row-stripe: rgba(16,24,40,.03);
   --row-hover: rgba(124,92,255,.08);
 }
 
-/* 2) قلّل وهج الخلفية العامة */
+/* —— Global background —— */
 html[data-theme='light'] body{
+  color: var(--text);
   background:
-    radial-gradient(950px 600px at -15% -20%, rgba(124,92,255,.07), transparent 55%),
-    radial-gradient(900px 700px at 120% 0%, rgba(33,212,253,.07), transparent 55%),
-    radial-gradient(650px 500px at 50% 120%, rgba(212,175,55,.06), transparent 55%),
+    radial-gradient(1100px 700px at -15% -20%, rgba(124,92,255,.08), transparent 55%),
+    radial-gradient(1000px 750px at 120% 0%,  rgba(33,212,253,.08),  transparent 55%),
+    radial-gradient(700px 550px  at 50% 120%,  rgba(212,175,55,.06), transparent 55%),
     var(--bg);
+  background-attachment: fixed;
 }
 
-/* 3) بطاقات أوضح بدون لمعان مزعج */
+/* —— Navbar —— */
+html[data-theme='light'] .navbar{
+  background: linear-gradient(90deg, rgba(255,255,255,.95), rgba(255,255,255,.88));
+  border-bottom: var(--border);
+  backdrop-filter: blur(8px);
+}
+html[data-theme='light'] .navbar .nav-link{ color: var(--muted); }
+
+/* —— Sidebar —— */
+html[data-theme='light'] .sidebar{
+  background: linear-gradient(180deg, #ffffff, #f7f9fc);
+  border-right: var(--border);
+}
+html[data-theme='light'] .sidebar .nav-link{ color: #49566a; }
+html[data-theme='light'] .sidebar .nav-link:hover{
+  color:#111827;
+  background: linear-gradient(90deg, rgba(124,92,255,.18), rgba(33,212,253,.12));
+  box-shadow: inset 0 0 0 1px rgba(124,92,255,.35), 0 10px 22px rgba(124,92,255,.18);
+}
+html[data-theme='light'] .sidebar .nav-link.active{
+  color:#0b1220;
+  background: linear-gradient(90deg, rgba(124,92,255,.22), rgba(33,212,253,.16));
+  box-shadow: inset 0 0 0 1px rgba(124,92,255,.45), 0 10px 22px rgba(124,92,255,.22);
+}
+
+/* —— Cards / Sections —— */
 html[data-theme='light'] .card,
 html[data-theme='light'] .form-card,
 html[data-theme='light'] .table-card{
-  background: linear-gradient(180deg, rgba(255,255,255,.88), rgba(255,255,255,.92));
+  background: linear-gradient(180deg, rgba(255,255,255,.92), rgba(255,255,255,.96));
   border: var(--border);
-  box-shadow: 0 6px 18px rgba(16,24,40,.06);
+  box-shadow: var(--shadow-1);
+  color: var(--text);
+}
+html[data-theme='light'] .page-title{
+  background: linear-gradient(90deg, #111827, #3b82f6 70%);
+  -webkit-background-clip:text; color:transparent;
+  text-shadow:none;
 }
 
-/* 4) مدخلات: كانت داكنة حتى في الوضع الفاتح — خلّيها فاتحة ومقروءة */
+/* —— Forms —— */
+html[data-theme='light'] label{ color:#243147; }
 html[data-theme='light'] input[type="text"],
 html[data-theme='light'] input[type="date"],
 html[data-theme='light'] input[type="number"],
@@ -89,10 +134,10 @@ html[data-theme='light'] input[type="password"],
 html[data-theme='light'] .form-control,
 html[data-theme='light'] select,
 html[data-theme='light'] .form-select{
-  background: linear-gradient(180deg, #f2f5fb, #e9eef7); /* رمادي أزرق لطيف */
-  border: 1px solid #cfd6e6;
+  background: linear-gradient(180deg, #f7f9fd, #eef3fb);
+  border: 1px solid #d5dbea;
   color: var(--text);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.6);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.8);
 }
 html[data-theme='light'] ::placeholder{ color: var(--placeholder); }
 html[data-theme='light'] input:focus,
@@ -100,24 +145,56 @@ html[data-theme='light'] select:focus,
 html[data-theme='light'] .form-control:focus,
 html[data-theme='light'] .form-select:focus{
   outline: none;
-  border-color: #b8c2dc;
-  box-shadow: 0 0 0 3px rgba(124,92,255,.22);
+  border-color: #c4ccea;
+  box-shadow: 0 0 0 4px rgba(124,92,255,.22);
 }
 
-/* 5) شريط علوي وجانبي أقل شفافية (تباين أفضل) */
-html[data-theme='light'] .navbar{
-  background: linear-gradient(90deg, rgba(255,255,255,.95), rgba(255,255,255,.85));
-  border-bottom: var(--border);
-}
-html[data-theme='light'] .sidebar{
-  background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(255,255,255,.94));
-  border-right: var(--border);
-}
+/* —— Buttons —— */
+html[data-theme='light'] .btn-primary{ color:#fff; background: linear-gradient(180deg, #7c5cff, #5e3efe); }
+html[data-theme='light'] .btn-secondary{ color:#0b1220; background: linear-gradient(180deg, #e6eaf5, #d8deee); }
+html[data-theme='light'] .btn-success{ color:#05210f; background: linear-gradient(180deg, #22c55e, #16a34a); }
+html[data-theme='light'] .btn-danger{  color:#fff;   background: linear-gradient(180deg, #ef4444, #b91c1c); }
+html[data-theme='light'] .btn-gold{    color:#0b1220; background: linear-gradient(180deg, #ffd86f, #d4af37); box-shadow: 0 10px 24px rgba(212,175,55,.28); }
 
-/* 6) رأس الجدول ونصوص أهدأ */
+/* —— Tables —— */
 html[data-theme='light'] thead th{
   color:#44506a;
-  background: rgba(0,0,0,.04);
+  background: rgba(16,24,40,.04);
+}
+html[data-theme='light'] tbody td{ border-top: 1px solid rgba(16,24,40,.08); }
+html[data-theme='light'] tbody tr:nth-child(odd){ background: var(--row-stripe); }
+html[data-theme='light'] tbody tr:hover{ background: var(--row-hover); }
+
+/* —— Badges —— */
+html[data-theme='light'] .badge{
+  border:1px solid rgba(16,24,40,.10);
+  backdrop-filter: blur(2px);
+}
+html[data-theme='light'] .status-active{  background: rgba(34,197,94,.15);  color:#0f5132; }
+html[data-theme='light'] .status-inactive{background: rgba(148,163,184,.20); color:#334155; }
+
+/* —— Alerts / Empty —— */
+html[data-theme='light'] .alert{
+  background: rgba(239,68,68,.10);
+  border: 1px solid rgba(239,68,68,.35);
+  color: #7f1d1d;
+}
+html[data-theme='light'] .no-data{ color:#6b7280; }
+
+/* —— Fancy quick-links (dashboard) —— */
+html[data-theme='light'] .quick-links .link-buttons .btn{
+  box-shadow: 0 6px 20px rgba(16,24,40,.08);
+}
+html[data-theme='light'] .quick-links .link-buttons .btn:hover{
+  transform: translateY(-1px);
+  box-shadow: 0 16px 36px rgba(16,24,40,.14);
+}
+
+/* —— Theme toggle button —— */
+html[data-theme='light'] .theme-toggle{
+  background: linear-gradient(180deg, rgba(0,0,0,.06), rgba(0,0,0,.04));
+  color:#111827;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.08);
 }
 
 
