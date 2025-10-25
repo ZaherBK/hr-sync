@@ -93,7 +93,7 @@
               </td>
               <td>
                 {# Bouton Approuver seulement si non approuvé et si user est admin #}
-                {% if not l.approved and user.role == 'admin' %}
+                {% if not l.approved and user.permissions.is_admin %}
                 <form method="post" action="{{ request.url_for('leaves_approve', leave_id=l.id) }}" style="display: inline;">
                   <button type="submit" class="btn btn-success btn-sm">
                     <i class="fa-solid fa-thumbs-up"></i> Approuver
