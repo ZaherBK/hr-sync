@@ -347,3 +347,48 @@ td.amount{ font-weight:800; }
   0%,100% { box-shadow: 0 0 12px rgba(124,92,255,.4); }
   50% { box-shadow: 0 0 26px rgba(124,92,255,.8); }
 }
+
+.tabs-luxe {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .7rem;
+  margin: 1rem 0;
+}
+
+.tab-link {
+  background: linear-gradient(135deg, rgba(124,92,255,.15), rgba(33,212,253,.10));
+  border: 1px solid rgba(255,255,255,.15);
+  border-radius: 14px;
+  color: #d8e1ff;
+  padding: .6rem 1.2rem;
+  font-weight: 600;
+  letter-spacing: .2px;
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  text-decoration: none;
+  transition: all .25s ease;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.05);
+}
+
+.tab-link:hover {
+  background: linear-gradient(135deg, rgba(124,92,255,.25), rgba(33,212,253,.18));
+  transform: translateY(-2px);
+  color: #fff;
+}
+
+.tab-link.active {
+  background: linear-gradient(135deg, #7c5cff, #5e3efe);
+  color: #fff;
+  box-shadow: 0 6px 20px rgba(124,92,255,.45);
+  border-color: rgba(124,92,255,.5);
+}
+
+.tab-content {
+  display: none;
+}
+
+.tab-content:first-of-type {
+  display: block; /* افتراضياً أول تبويب ظاهر */
+}
+
