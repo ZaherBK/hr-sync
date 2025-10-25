@@ -249,9 +249,11 @@ async def home(
 
 
 @app.get("/login", response_class=HTMLResponse, name="login_page")
-async def login_page(request: Request):
-    """Affiche la page de connexion."""
-    return templates.TemplateResponse("login.html", {"request": request, "app_name": APP_NAME})
+async def login_page(request: Request, db: AsyncSession = Depends(get_db)):
+    res = await db.execute(select(User).order_by(User.full_name))
+    users = res.scalars().all()
+    return templates.TemplateResponse("login.html", {"request": request, "app_name": APP_NAME, "users": users})
+
 
 
 @app.post("/login", name="login_action")
