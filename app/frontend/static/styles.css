@@ -384,4 +384,57 @@ td.amount{ font-weight:800; }
   border-color: rgba(124,92,255,.5);
 }
 
+/* ===== Report sections: perfect alignment ===== */
+
+/* نلغي padding الداخلي للكارد داخل التبويب، ونبني هيدر/بودي متناسقين */
+.tab-content.card {
+  padding: 0;                 /* مهم: يمنع اختلاف بدايات الجداول */
+  border-radius: 16px;
+  overflow: hidden;           /* حتى الزوايا تتقص بطريقة نظيفة */
+}
+
+/* عنوان القسم موحد */
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  margin: 0;                  /* يمنع إزاحة اليسار */
+  padding: .9rem 1rem;
+  font-size: 1.05rem;
+  color: #e9eeff;
+  border-bottom: var(--border);
+  background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.05));
+  backdrop-filter: blur(6px);
+}
+
+/* عرض ثابت للأيقونة حتى كل العناوين تصطف على نفس السطر */
+.section-title i {
+  width: 22px;
+  text-align: center;
+  opacity: .95;
+}
+
+/* جسم القسم: الجدول */
+.section-body {
+  padding: 0;                 /* لا padding هنا—الجدول يملأ العرض */
+}
+
+/* جدول موحَّد الحواف داخل الكارد */
+.section-body .table-responsive {
+  border: none;               /* اعتمدنا حد الكارد نفسه */
+  border-radius: 0;           /* لا زوايا؛ لأنها مأخوذة من الكارد */
+}
+
+/* رأس الجدول يبقى لاصق وبلون موحد */
+.section-body thead th {
+  background: rgba(255,255,255,.08);
+  border-bottom: 1px solid rgba(255,255,255,.12);
+}
+
+/* توحيد الهوامش أعلى كل تبويب */
+.tab-content + .tab-content { margin-top: 1.2rem; }
+
+/* إن حبيت تزيد هوامش خارجية عامة تحت التبويب */
+.tab-content.card:not(.active) { display: none; }
+.tab-content.card.active { display: block; }
 
