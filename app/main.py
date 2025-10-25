@@ -19,7 +19,8 @@ from sqlalchemy.future import select
 from . import models, schemas
 
 from .db import engine, Base, AsyncSessionLocal, get_db
-from .auth import authenticate_user, create_access_token, hash_password, ACCESS_TOKEN_EXPIRE_MINUTES, api_require_permission, get_current_user_data_from_token
+# /app/main.py
+from .auth import authenticate_user, create_access_token, hash_password, ACCESS_TOKEN_EXPIRE_MINUTES, api_require_permission
 # Importer TOUS les modèles nécessaires
 from .models import (
     Attendance, AttendanceType, Branch, Deposit, Employee, Leave, User, Pay, PayType, AuditLog, LeaveType,
@@ -70,21 +71,22 @@ app.add_middleware(
 )
 
 # 1. Create a NEW dependency to get the FULL database user
+# /app/main.py
 async def get_current_db_user(
     db: AsyncSession = Depends(get_db), 
-    user_data: dict = Depends(get_current_user_data_from_token) # Use your existing dependency
+    user_data: dict = Depends(get_current_session_user) # <--- FIX 1
 ) -> models.User | None:
     
     if not user_data:
         return None
         
-    # Get the email (or ID) from your token's 'sub' field
-    user_email = user_data.get("sub") 
+    # Get the email from the session dict
+    user_email = user_data.get("email") # <--- FIX 2
     if not user_email:
         return None
 
-    # This is the query that fetches the User AND its related Role (as 'permissions')
-    # The 'lazy="joined"' from Step 1 makes this work in one query.
+    # This is the query that fetches the User AND its related Role
+    # (which you renamed to 'permissions' in your model)
     result = await db.execute(
         select(models.User).where(models.User.email == user_email)
     )
