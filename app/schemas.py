@@ -109,7 +109,7 @@ class EmployeeBase(BaseModel):
             raise ValueError('Le numéro CIN doit être composé uniquement de chiffres.')
         return v
     
-    @field_control('salary')
+    @field_validator('salary')
     def validate_salary(cls, v):
         if v is not None and v < 0:
             raise ValueError('Le salaire doit être un montant positif.')
