@@ -192,18 +192,8 @@ document.addEventListener('DOMContentLoaded', function() {
       showTab(target);
     });
   });
-
-  // Optional: Check if there's a hash in the URL on page load
-  // and show that tab (e.g., if you refresh on the 'Absences' tab)
-  if (window.location.hash) {
-    const validTab = Array.from(tabLinks).some(link => link.getAttribute('href') === window.location.hash);
-    if (validTab) {
-      showTab(window.location.hash);
-      return;
-    }
-  }
-
-  // Fallback to show the first tab if no valid hash
+  
+  // Show the first tab by default
   showTab('#paie');
 
 });
