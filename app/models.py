@@ -211,3 +211,106 @@ class AuditLog(Base):
     branch_id: Mapped[int | None] = mapped_column(ForeignKey("branches.id"), nullable=True)
     details: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+# --- Loans / Advances (structured) ---
+
+class LoanInterestType(str, enum.Enum):
+    none = "none"         # بدون فائدة (Advance)
+    flat = "flat"         # فائدة ثابتة على كامل المدة
+    reducing = "reducing" # فائدة على الرصيد المتناقص
+
+class LoanTermUnit(str, enum.Enum):
+    week = "week"
+    month = "month"
+
+class LoanStatus(str, enum.Enum):
+    draft = "draft"
+    approved = "approved"
+    active = "active"
+    paid = "paid"
+    defaulted = "defaulted"
+    canceled = "canceled"
+
+class ScheduleStatus(str, enum.Enum):
+    pending = "pending"
+    partial = "partial"
+    paid = "paid"
+    overdue = "overdue"
+
+class RepaymentSource(str, enum.Enum):
+    payroll = "payroll"
+    cash = "cash"
+    adjustment = "adjustment"
+
+class Loan(Base):
+    __tablename__ = "loans"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    employee_id: Mapped[int] = mapped_column(ForeignKey("employees.id"), index=True)
+    principal: Mapped[Decimal] = mapped_column(Numeric(12, 3))  # داخل النظام 3 منازل
+    interest_type: Mapped[LoanInterestType] = mapped_column(Enum(LoanInterestType))
+    annual_interest_rate: Mapped[Decimal | None] = mapped_column(Numeric(7, 4), nullable=True)
+    term_count: Mapped[int] = mapped_column(Integer)            # عدد الأقساط
+    term_unit: Mapped[LoanTermUnit] = mapped_column(Enum(LoanTermUnit))
+    start_date: Mapped[date] = mapped_column(Date)
+    first_due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    fee: Mapped[Decimal | None] = mapped_column(Numeric(10, 3), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_by: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    status: Mapped[LoanStatus] = mapped_column(Enum(LoanStatus), default=LoanStatus.draft)
+
+    # مشتقات (تُحدَّث عبر الخدمة)
+    scheduled_total: Mapped[Decimal] = mapped_column(Numeric(12, 3), default=Decimal("0"))
+    repaid_total: Mapped[Decimal] = mapped_column(Numeric(12, 3), default=Decimal("0"))
+    outstanding_principal: Mapped[Decimal] = mapped_column(Numeric(12, 3), default=Decimal("0"))
+    next_due_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    # علاقات
+    employee = relationship("Employee")
+    schedules = relationship("LoanSchedule", back_populates="loan", cascade="all, delete-orphan")
+    repayments = relationship("LoanRepayment", back_populates="loan", cascade="all, delete-orphan")
+
+class LoanSchedule(Base):
+    __tablename__ = "loan_schedules"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    loan_id: Mapped[int] = mapped_column(ForeignKey("loans.id"), index=True)
+    sequence_no: Mapped[int] = mapped_column(Integer, index=True)  # 1..N
+    due_date: Mapped[date] = mapped_column(Date, index=True)
+
+    due_principal: Mapped[Decimal] = mapped_column(Numeric(12, 3))
+    due_interest: Mapped[Decimal] = mapped_column(Numeric(12, 3))
+    due_total: Mapped[Decimal] = mapped_column(Numeric(12, 3))
+
+    paid_principal: Mapped[Decimal] = mapped_column(Numeric(12, 3), default=Decimal("0"))
+    paid_interest: Mapped[Decimal] = mapped_column(Numeric(12, 3), default=Decimal("0"))
+    paid_total: Mapped[Decimal] = mapped_column(Numeric(12, 3), default=Decimal("0"))
+    paid_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+
+    status: Mapped[ScheduleStatus] = mapped_column(Enum(ScheduleStatus), default=ScheduleStatus.pending)
+
+    loan = relationship("Loan", back_populates="schedules")
+
+class LoanRepayment(Base):
+    __tablename__ = "loan_repayments"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    loan_id: Mapped[int] = mapped_column(ForeignKey("loans.id"), index=True)
+    schedule_id: Mapped[int | None] = mapped_column(ForeignKey("loan_schedules.id"), nullable=True, index=True)
+    amount: Mapped[Decimal] = mapped_column(Numeric(12, 3))
+    source: Mapped[RepaymentSource] = mapped_column(Enum(RepaymentSource))
+    paid_on: Mapped[date] = mapped_column(Date, index=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_by: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    loan = relationship("Loan", back_populates="repayments")
+    schedule = relationship("LoanSchedule")
+
+class LoanSettings(Base):
+    __tablename__ = "loan_settings"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    max_dti: Mapped[Decimal] = mapped_column(Numeric(5, 3), default=Decimal("0.300"))  # 30%
+    max_concurrent_loans: Mapped[int] = mapped_column(Integer, default=1)
+    default_term_unit: Mapped[LoanTermUnit] = mapped_column(Enum(LoanTermUnit), default=LoanTermUnit.month)
+    grace_days: Mapped[int] = mapped_column(Integer, default=3)
+    penalty_rate_per_period: Mapped[Decimal] = mapped_column(Numeric(6, 4), default=Decimal("0.000"))
