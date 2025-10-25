@@ -22,9 +22,61 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .db import Base
 
 
-class Role(str, enum.Enum):
-    admin = "admin"
-    manager = "manager"
+# --- SUPPRIMÉ ---
+# class Role(str, enum.Enum):
+#     admin = "admin"
+#     manager = "manager"
+# --- FIN SUPPRIMÉ ---
+
+# --- NOUVEAU MODÈLE : Role ---
+class Role(Base):
+    __tablename__ = "roles"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(100), unique=True)
+    
+    # --- Permissions ---
+    # "God Mode" - contourne toutes les autres vérifications
+    is_admin: Mapped[bool] = mapped_column(Boolean, default=False) 
+    
+    # Gestion du système
+    can_manage_users: Mapped[bool] = mapped_column(Boolean, default=False)
+    can_manage_roles: Mapped[bool] = mapped_column(Boolean, default=False)
+    can_manage_branches: Mapped[bool] = mapped_column(Boolean, default=False)
+    can_view_settings: Mapped[bool] = mapped_column(Boolean, default=False)
+    can_clear_logs: Mapped[bool] = mapped_column(Boolean, default=False)
+    
+    # Gestion RH
+    can_manage_employees: Mapped[bool] = mapped_column(Boolean, default=False)
+    can_view_reports: Mapped[bool] = mapped_column(Boolean, default=False)
+    
+    # Gestion quotidienne
+    can_manage_pay: Mapped[bool] = mapped_column(Boolean, default=False)
+    can_manage_absences: Mapped[bool] = mapped_column(Boolean, default=False)
+    can_manage_leaves: Mapped[bool] = mapped_column(Boolean, default=False)
+    can_manage_deposits: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    # Relations
+    users = relationship("User", back_populates="role")
+
+    def to_dict(self):
+        """Renvoie les permissions sous forme de dictionnaire."""
+        return {
+            "id": self.id,
+            "name": self.name,
+            "is_admin": self.is_admin,
+            "can_manage_users": self.can_manage_users,
+            "can_manage_roles": self.can_manage_roles,
+            "can_manage_branches": self.can_manage_branches,
+            "can_view_settings": self.can_view_settings,
+            "can_clear_logs": self.can_clear_logs,
+            "can_manage_employees": self.can_manage_employees,
+            "can_view_reports": self.can_view_reports,
+            "can_manage_pay": self.can_manage_pay,
+            "can_manage_absences": self.can_manage_absences,
+            "can_manage_leaves": self.can_manage_leaves,
+            "can_manage_deposits": self.can_manage_deposits,
+        }
+# --- FIN NOUVEAU MODÈLE ---
 
 
 class User(Base):
@@ -33,10 +85,18 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     full_name: Mapped[str] = mapped_column(String(255))
     hashed_password: Mapped[str] = mapped_column(String(255))
-    role: Mapped[Role] = mapped_column(Enum(Role), default=Role.manager)
+    
+    # --- MODIFIÉ : Utilise la clé étrangère vers la table roles ---
+    role_id: Mapped[int | None] = mapped_column(ForeignKey("roles.id"))
+    # --- FIN MODIFIÉ ---
+    
     branch_id: Mapped[int | None] = mapped_column(ForeignKey("branches.id"), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    
     # Relations
+    # --- MODIFIÉ : Relation vers le modèle Role ---
+    role = relationship("Role", back_populates="users", lazy="joined")
+    # --- FIN MODIFIÉ ---
     branch = relationship("Branch", back_populates="users")
 
 
