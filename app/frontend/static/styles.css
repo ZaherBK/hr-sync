@@ -1,6 +1,6 @@
 /* =========================================================
-   AURORA LUXE v2.1 — Neon Glass + High Contrast (by Zaher)
-   ========================================================= */
+    AURORA LUXE v2.1 — Neon Glass + High Contrast (by Zaher)
+    ========================================================= */
 
 /* ---------- Reset ---------- */
 * { box-sizing: border-box; }
@@ -15,7 +15,7 @@ body { margin: 0; -webkit-font-smoothing: antialiased; text-rendering: optimizeL
   --bg-elev: #161d2e;
 
   /* Text */
-  --text: #eef3fb;         /* high-contrast text */
+  --text: #eef3fb;        /* high-contrast text */
   --muted: #aeb8cc;
   --placeholder: #c0c7d8;
 
@@ -166,7 +166,7 @@ input:focus, select:focus, .form-control:focus, .form-select:focus{
 .form-actions{ display:flex; gap:.6rem; justify-content:flex-end; }
 
 /* === Select dropdown FIX (better contrast across browsers) === */
-select, .form-select { color: #f8faff !important; }           /* forces dark popup on Chromium */
+select, .form-select { color: #f8faff !important; }        /* forces dark popup on Chromium */
 select option, .form-select option{
   background:#0f1624; color:var(--text);
 }
@@ -175,26 +175,6 @@ select option[disabled]{ color:var(--muted); }
 /* Employee details contrast */
 .employee-details p{ color:#e9efff; }
 .employee-details strong{ color:#cfd9ff; }
-
-/* ---------- Tabs (Paie/Avances/Absences/Congés) ---------- */
-.tabs-container{ margin-top: 1rem; }
-.tabs-nav{ display:flex; gap:.5rem; margin-bottom:.75rem; flex-wrap:wrap; }
-.tab-link{
-  display:inline-flex; align-items:center; gap:.4rem;
-  padding:.6rem .9rem; border-radius:12px;
-  border:1px solid rgba(255,255,255,.14);
-  color:var(--muted);
-  background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
-  text-decoration:none;
-  transition: box-shadow .25s ease, transform .06s ease, color .2s ease, background .2s ease;
-}
-.tab-link:hover{ color:var(--text); box-shadow: var(--shadow-1); transform: translateY(-1px); }
-.tab-link.active{
-  color:#fff;
-  background: linear-gradient(180deg, rgba(124,92,255,.28), rgba(33,212,253,.18));
-  border-color: rgba(124,92,255,.45);
-}
-.tab-content{ margin-top:.25rem; }
 
 /* ---------- Tables ---------- */
 .table-responsive{ overflow:auto; border-radius:14px; border:var(--border); }
@@ -281,19 +261,6 @@ td.amount{ font-weight:800; }
 /* Keep Bootstrap table rounding compatibility */
 .table{ border-radius: 12px; overflow:hidden; }
 
-/* ---------- Tab transition (fade + glow) ---------- */
-.tab-content {
-  opacity: 0;
-  visibility: hidden;
-  transform: translateY(6px);
-  transition: opacity .35s ease, transform .35s ease;
-}
-.tab-content.active {
-  opacity: 1;
-  visibility: visible;
-  transform: translateY(0);
-}
-
 /* Add glow around active tab link */
 .tab-link.active {
   box-shadow: 0 0 15px rgba(124,92,255,.45);
@@ -327,7 +294,7 @@ td.amount{ font-weight:800; }
   transition: all .25s ease;
   box-shadow: inset 0 0 0 1px rgba(255,255,255,.05);
 }
-
+.luxe-tabs { margin-left: 0; margin-right: 0; }
 .luxe-tabs .tab-link:hover {
   background: linear-gradient(135deg, rgba(124,92,255,.25), rgba(33,212,253,.18));
   color: #fff;
@@ -390,9 +357,9 @@ td.amount{ font-weight:800; }
 
 /* نلغي padding الداخلي للكارد داخل التبويب، ونبني هيدر/بودي متناسقين */
 .tab-content.card {
-  padding: 0;                 /* مهم: يمنع اختلاف بدايات الجداول */
+  padding: 0;                /* مهم: يمنع اختلاف بدايات الجداول */
   border-radius: 16px;
-  overflow: hidden;           /* حتى الزوايا تتقص بطريقة نظيفة */
+  overflow: hidden;          /* حتى الزوايا تتقص بطريقة نظيفة */
 }
 
 /* عنوان القسم موحد */
@@ -400,7 +367,7 @@ td.amount{ font-weight:800; }
   display: flex;
   align-items: center;
   gap: .6rem;
-  margin: 0;                  /* يمنع إزاحة اليسار */
+  margin: 0;                 /* يمنع إزاحة اليسار */
   padding: .9rem 1rem;
   font-size: 1.05rem;
   color: #e9eeff;
@@ -418,13 +385,13 @@ td.amount{ font-weight:800; }
 
 /* جسم القسم: الجدول */
 .section-body {
-  padding: 0;                 /* لا padding هنا—الجدول يملأ العرض */
+  padding: 0;                /* لا padding هنا—الجدول يملأ العرض */
 }
 
-/* جدول موحَّد الحواف داخل الكارد */
+/* جدول موحَّد الحواف داخل الكارد */
 .section-body .table-responsive {
-  border: none;               /* اعتمدنا حد الكارد نفسه */
-  border-radius: 0;           /* لا زوايا؛ لأنها مأخوذة من الكارد */
+  border: none;              /* اعتمدنا حد الكارد نفسه */
+  border-radius: 0;          /* لا زوايا؛ لأنها مأخوذة من الكارد */
 }
 
 /* رأس الجدول يبقى لاصق وبلون موحد */
@@ -439,4 +406,3 @@ td.amount{ font-weight:800; }
 /* إن حبيت تزيد هوامش خارجية عامة تحت التبويب */
 .tab-content.card:not(.active) { display: none; }
 .tab-content.card.active { display: block; }
-
