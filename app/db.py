@@ -8,9 +8,9 @@ session generator is provided for FastAPI dependency injection.
 """
 import os
 from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse
-
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
-from sqlalchemy.orm import declarative_base
+from typing import AsyncGenerator
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+from sqlalchemy.orm import declarative_base, sessionmaker
 
 
 def _normalize_asyncpg_url(url: str) -> tuple[str, dict]:
@@ -56,3 +56,21 @@ async def get_session():
     """Yield an asynchronous session for use with FastAPI dependencies."""
     async with AsyncSessionLocal() as session:
         yield session
+
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
+    """
+    FastAPI dependency to get an async database session.
+    Handles session creation, rollback on error, and closing.
+    """
+    async with AsyncSessionLocal() as session:
+        try:
+            yield session
+            # If the endpoint doesn't commit, this will (e.g., for 'create' operations)
+            await session.commit() 
+        except Exception:
+            # Rollback on any error
+            await session.rollback()
+            raise
+        finally:
+            # Always close the session
+            await session.close()
