@@ -28,7 +28,7 @@ async def create_leave(
         raise HTTPException(status_code=404, detail="Employee not found")
 
     # --- MODIFIÉ : Vérification de permission par branche ---
-    if not user.role.is_admin and user.branch_id != employee.branch_id:
+    if not user.permissions.is_admin and user.branch_id != employee.branch_id:
         raise HTTPException(status_code=403, detail="Not authorized for this branch")
     # --- FIN MODIFIÉ ---
 
