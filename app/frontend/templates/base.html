@@ -151,18 +151,31 @@
           integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
           crossorigin="anonymous"></script>
 
-  <script>
-    (function(){
-      const html = document.documentElement;
-      const saved = localStorage.getItem('theme');
-      if(saved){ html.setAttribute('data-theme', saved); }
-      document.getElementById('toggleTheme')?.addEventListener('click', () => {
-        const next = html.getAttribute('data-theme') === 'aurora' ? 'light' : 'aurora';
-        html.setAttribute('data-theme', next);
-        localStorage.setItem('theme', next);
-      });
-    })();
-  </script>
+<script>
+  (function(){
+    const html = document.documentElement;
+    const btn  = document.getElementById('toggleTheme');
+    const setIcon = () => {
+      const mode = html.getAttribute('data-theme');
+      if(btn){
+        btn.innerHTML = mode === 'aurora'
+          ? '<i class="bi bi-brightness-high-fill"></i>'  // يظهر شمس = اضغط لتصبح Light؟
+          : '<i class="bi bi-moon-stars-fill"></i>';       // يظهر قمر
+      }
+    };
+    const saved = localStorage.getItem('theme');
+    if(saved){ html.setAttribute('data-theme', saved); }
+    setIcon();
+
+    btn?.addEventListener('click', () => {
+      const next = html.getAttribute('data-theme') === 'aurora' ? 'light' : 'aurora';
+      html.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+      setIcon();
+    });
+  })();
+</script>
+
   
   {% block body_extra %}{% endblock %}
   
