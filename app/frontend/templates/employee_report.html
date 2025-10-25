@@ -55,8 +55,6 @@
   <a href="#conges" class="tab-link"><i class="fa-solid fa-umbrella-beach"></i> Congés</a>
 </div>
 
-
-
 <div id="paie" class="tab-content active">
   <h4><i class="fa-solid fa-hand-holding-dollar"></i> Historique de Paie</h4>
   {% if pay_history %}
@@ -81,7 +79,7 @@
   {% endif %}
 </div>
 
-<div id="avances" class="tab-content" style="display:none;">
+<div id="avances" class="tab-content">
   <h4><i class="fa-solid fa-money-bill-transfer"></i> Historique des Avances</h4>
   {% if deposits %}
   <div class="table-responsive">
@@ -104,7 +102,7 @@
   {% endif %}
 </div>
 
-<div id="absences" class="tab-content" style="display:none;">
+<div id="absences" class="tab-content">
   <h4><i class="fa-regular fa-calendar-xmark"></i> Historique des Absences</h4>
   {% if absences %}
   <div class="table-responsive">
@@ -126,7 +124,7 @@
   {% endif %}
 </div>
 
-<div id="conges" class="tab-content" style="display:none;">
+<div id="conges" class="tab-content">
   <h4><i class="fa-solid fa-umbrella-beach"></i> Historique des Congés</h4>
   {% if leaves %}
   <div class="table-responsive">
@@ -168,20 +166,46 @@ document.addEventListener('DOMContentLoaded', function() {
   const tabLinks = document.querySelectorAll('.tabs-luxe .tab-link');
   const tabContents = document.querySelectorAll('.tab-content');
 
+  function showTab(targetId) {
+    // Remove 'active' from all links and content panels
+    tabLinks.forEach(l => l.classList.remove('active'));
+    tabContents.forEach(c => c.classList.remove('active'));
+
+    // Find the link and content panel that match the targetId
+    const activeLink = document.querySelector(`.tabs-luxe .tab-link[href="${targetId}"]`);
+    const activeContent = document.querySelector(targetId);
+
+    // Add 'active' class to them
+    if (activeLink) {
+      activeLink.classList.add('active');
+    }
+    if (activeContent) {
+      activeContent.classList.add('active');
+    }
+  }
+
+  // Add click event listeners
   tabLinks.forEach(link => {
     link.addEventListener('click', e => {
-      e.preventDefault();
+      e.preventDefault(); // Stop the link from jumping
       const target = link.getAttribute('href');
-
-      // إزالة التبويب النشط وإخفاء المحتوى القديم
-      tabLinks.forEach(l => l.classList.remove('active'));
-      tabContents.forEach(c => c.style.display = 'none');
-
-      // تفعيل التبويب المطلوب
-      link.classList.add('active');
-      document.querySelector(target).style.display = 'block';
+      showTab(target);
     });
   });
+
+  // Optional: Check if there's a hash in the URL on page load
+  // and show that tab (e.g., if you refresh on the 'Absences' tab)
+  if (window.location.hash) {
+    const validTab = Array.from(tabLinks).some(link => link.getAttribute('href') === window.location.hash);
+    if (validTab) {
+      showTab(window.location.hash);
+      return;
+    }
+  }
+
+  // Fallback to show the first tab if no valid hash
+  showTab('#paie');
+
 });
 </script>
 {% endblock %}
