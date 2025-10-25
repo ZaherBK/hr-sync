@@ -3,7 +3,6 @@
 {% block content %}
 <h2 class="page-title"><i class="fa-solid fa-user-check"></i> Rapport Employé</h2>
 
-<!-- Sélection de l'employé -->
 <div class="card form-card">
   <h3>Sélectionner un Employé</h3>
   <form method="get" action="{{ request.url_for('employee_report_index') }}">
@@ -49,7 +48,6 @@
   </div>
 </div>
 
-<!-- Onglets -->
 <div class="tabs-luxe">
   <a href="#paie" class="tab-link active"><i class="fa-solid fa-coins"></i> Paie</a>
   <a href="#avances" class="tab-link"><i class="fa-solid fa-hand-holding-dollar"></i> Avances</a>
@@ -59,7 +57,6 @@
 
 
 
-<!-- Paie -->
 <div id="paie" class="tab-content active">
   <h4><i class="fa-solid fa-hand-holding-dollar"></i> Historique de Paie</h4>
   {% if pay_history %}
@@ -84,7 +81,6 @@
   {% endif %}
 </div>
 
-<!-- Avances -->
 <div id="avances" class="tab-content" style="display:none;">
   <h4><i class="fa-solid fa-money-bill-transfer"></i> Historique des Avances</h4>
   {% if deposits %}
@@ -108,7 +104,6 @@
   {% endif %}
 </div>
 
-<!-- Absences -->
 <div id="absences" class="tab-content" style="display:none;">
   <h4><i class="fa-regular fa-calendar-xmark"></i> Historique des Absences</h4>
   {% if absences %}
@@ -131,7 +126,6 @@
   {% endif %}
 </div>
 
-<!-- Congés -->
 <div id="conges" class="tab-content" style="display:none;">
   <h4><i class="fa-solid fa-umbrella-beach"></i> Historique des Congés</h4>
   {% if leaves %}
@@ -191,5 +185,3 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {% endblock %}
-
-
