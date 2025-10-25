@@ -28,7 +28,7 @@
     </div>
     <div class="form-row">
       {# --- PERMISSION : Champ Salaire visible par l'admin seulement --- #}
-      {% if user.role == 'admin' %}
+      {% if user.permissions.is_admin %}
       <div class="form-group">
         <label for="salary">Salaire de Base (TND)</label>
         <input type="text" id="salary" name="salary" placeholder="Ex: 1200.00"
@@ -38,7 +38,7 @@
       {% endif %}
       <div class="form-group">
         <label for="branch_id">Magasin</label>
-        {% if user.role == 'manager' and manager_branch_id %}
+        {% if (not user.permissions.is_admin) and manager_branch_id %}
             <input type="hidden" name="branch_id" value="{{ manager_branch_id }}">
             <p><strong>Magasin :</strong>
                 {% for b in branches %}
@@ -77,13 +77,13 @@
               <th>N° CIN</th>
               <th>Poste</th>
               {# --- PERMISSION : Colonne Salaire visible par l'admin seulement --- #}
-              {% if user.role == 'admin' %}
+              {% if user.permissions.is_admin %}
               <th>Salaire (TND)</th>
               {% endif %}
               <th>Magasin</th>
               <th>Statut</th>
               {# --- PERMISSION : Colonne Actions visible par l'admin seulement --- #}
-              {% if user.role == 'admin' %}
+              {% if user.permissions.is_admin %}
               <th>Actions</th>
               {% endif %}
             </tr>
@@ -97,7 +97,7 @@
               <td>{{ e.cin or '-' }}</td>
               <td>{{ e.position }}</td>
               {# --- PERMISSION : Cellule Salaire visible par l'admin seulement --- #}
-              {% if user.role == 'admin' %}
+              {% if user.permissions.is_admin %}
               <td class="amount">
                 {% if e.salary %}{{ "%.2f"|format(e.salary|float) }}{% else %}-{% endif %}
               </td>
@@ -117,7 +117,7 @@
                 {% endif %}
               </td>
               {# --- PERMISSION : Cellule Actions visible par l'admin seulement --- #}
-              {% if user.role == 'admin' %}
+              {% if user.permissions.is_admin %}
               <td>
                 <a href="{{ request.url_for('employee_report_index') }}?employee_id={{ e.id }}" class="btn btn-primary btn-sm">
                   <i class="fa-solid fa-eye"></i> Détails
