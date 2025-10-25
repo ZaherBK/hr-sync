@@ -56,7 +56,7 @@ class Role(Base):
     can_manage_deposits: Mapped[bool] = mapped_column(Boolean, default=False)
 
     # Relations
-    users = relationship("User", back_populates="role")
+    users = relationship("User", back_populates="permissions")
 
     def to_dict(self):
         """Renvoie les permissions sous forme de dictionnaire."""
@@ -95,7 +95,7 @@ class User(Base):
     
     # Relations
     # --- MODIFIÉ : Relation vers le modèle Role ---
-    role = relationship("Role", back_populates="users", lazy="joined")
+    permissions = relationship("Role", back_populates="users", lazy="joined")
     # --- FIN MODIFIÉ ---
     branch = relationship("Branch", back_populates="users")
 
