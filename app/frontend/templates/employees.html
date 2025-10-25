@@ -122,6 +122,11 @@
                 <a href="{{ request.url_for('employee_report_index') }}?employee_id={{ e.id }}" class="btn btn-primary btn-sm">
                   <i class="fa-solid fa-eye"></i> Détails
                 </a>
+                <form method="post" action="{{ request.url_for('employees_delete', employee_id=e.id) }}" style="display:inline;">
+                  <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Supprimer cet employé ?');">
+                    <i class="fa-solid fa-trash"></i> Supprimer
+                  </button>
+                </form>
               </td>
               {% endif %}
             </tr>
