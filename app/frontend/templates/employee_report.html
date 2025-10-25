@@ -50,12 +50,13 @@
 </div>
 
 <!-- Onglets -->
-<div class="tabs-luxe">
-  <button class="tab-btn active" data-tab="paie"><i class="fa-solid fa-coins"></i> Paie</button>
-  <button class="tab-btn" data-tab="avances"><i class="fa-solid fa-hand-holding-dollar"></i> Avances</button>
-  <button class="tab-btn" data-tab="absences"><i class="fa-regular fa-calendar-xmark"></i> Absences</button>
-  <button class="tab-btn" data-tab="conges"><i class="fa-solid fa-umbrella-beach"></i> Congés</button>
+<div class="tabs-nav luxe-tabs">
+  <a href="#paie" class="tab-link active"><i class="fa-solid fa-coins"></i> Paie</a>
+  <a href="#avances" class="tab-link"><i class="fa-solid fa-hand-holding-dollar"></i> Avances</a>
+  <a href="#absences" class="tab-link"><i class="fa-regular fa-calendar-xmark"></i> Absences</a>
+  <a href="#conges" class="tab-link"><i class="fa-solid fa-umbrella-beach"></i> Congés</a>
 </div>
+
 
 
 <!-- Paie -->
@@ -169,22 +170,24 @@
 
 {% block body_extra %}
 <script>
-document.addEventListener('DOMContentLoaded', () => {
-  const tabs = document.querySelectorAll('.tab-btn');
-  const sections = document.querySelectorAll('.tab-content');
+document.addEventListener('DOMContentLoaded', function() {
+  const tabLinks = document.querySelectorAll('.tabs-nav .tab-link');
+  const tabContents = document.querySelectorAll('.tabs-container .tab-content');
 
-  tabs.forEach(btn => {
-    btn.addEventListener('click', () => {
-      tabs.forEach(b => b.classList.remove('active'));
-      sections.forEach(s => s.classList.remove('active'));
-      btn.classList.add('active');
-      document.getElementById(btn.dataset.tab).classList.add('active');
+  tabLinks.forEach(link => {
+    link.addEventListener('click', function(event) {
+      event.preventDefault();
+      const targetId = this.getAttribute('href');
+
+      tabContents.forEach(content => content.style.display = 'none');
+      tabLinks.forEach(l => l.classList.remove('active'));
+
+      document.querySelector(targetId).style.display = 'block';
+      this.classList.add('active');
     });
   });
-
-  // افتراضياً: إظهار القسم الأول فقط
-  document.querySelector('.tab-btn.active').click();
 });
 </script>
 {% endblock %}
+
 
