@@ -2,8 +2,7 @@
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
-  <h2 class="page-title"><i class="fa-solid fa-person-shield-fill"></i> Gestion des Utilisateurs</h2>
-  <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createUserModal">
+  <h2 class="page-title"><i class="fa-solid fa-users-cog"></i> Gestion des Utilisateurs</h2> <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createUserModal">
     <i class="fa-solid fa-user-plus"></i> Créer un Utilisateur
   </button>
 </div>
@@ -27,10 +26,12 @@
           <td class="details"><strong>{{ u.full_name }}</strong></td>
           <td>{{ u.email }}</td>
           <td>
-            {% if u.role.value == 'admin' %}
-              <span class="badge" style="background:rgba(239,68,68,.26); color:#ffd0d0;">Admin</span>
+            {% if u.role %}
+              <span class="badge {% if u.role.is_admin %}status-inactive{% else %}action-approve{% endif %}">
+                {{ u.role.name }}
+              </span>
             {% else %}
-              <span class="badge" style="background:rgba(56,189,248,.2); color:#c9ecff;">Manager</span>
+              <span class="badge status-inactive">Aucun Rôle</span>
             {% endif %}
           </td>
           <td>{{ u.branch.name if u.branch else '-' }}</td>
@@ -61,7 +62,7 @@
   <div class="modal-dialog">
     <div class="modal-content card">
       <form action="{{ url_for('users_create') }}" method="post">
-        <div class="modal-header">
+        <div class_content="modal-header">
           <h5 class="modal-title" id="createUserModalLabel">Créer un Nouvel Utilisateur</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" style="background-color: white;"></button>
         </div>
@@ -79,17 +80,20 @@
               <label for="password">Mot de Passe (min 6 caractères)</label>
               <input type="password" name="password" class="form-control" required minlength="6">
             </div>
+            
             <div class="form-group">
-              <label for="role">Rôle</label>
-              <select name="role" class="form-select">
-                <option value="manager">Manager</option>
-                <option value="admin">Admin</option>
+              <label for="role_id">Rôle</label>
+              <select name="role_id" class="form-select" required>
+                <option value="" disabled selected>-- Choisir un rôle --</option>
+                {% for role in roles %}
+                <option value="{{ role.id }}">{{ role.name }}</option>
+                {% endfor %}
               </select>
             </div>
             <div class="form-group">
-              <label for="branch_id">Magasin (si Manager)</label>
+              <label for="branch_id">Magasin (si applicable)</label>
               <select name="branch_id" class="form-select">
-                <option value="">Aucun (pour Admin)</option>
+                <option value="">Aucun</option>
                 {% for branch in branches %}
                 <option value="{{ branch.id }}">{{ branch.name }}</option>
                 {% endfor %}
@@ -129,17 +133,19 @@
                     <label for="email">Email</label>
                     <input type="email" name="email" class="form-control" value="{{ u.email }}" required>
                   </div>
+                  
                   <div class="form-group">
-                    <label for="role">Rôle</label>
-                    <select name="role" class="form-select">
-                      <option value="manager" {% if u.role.value == 'manager' %}selected{% endif %}>Manager</option>
-                      <option value="admin" {% if u.role.value == 'admin' %}selected{% endif %}>Admin</option>
+                    <label for="role_id">Rôle</label>
+                    <select name="role_id" class="form-select" required>
+                      {% for role in roles %}
+                      <option value="{{ role.id }}" {% if u.role_id == role.id %}selected{% endif %}>{{ role.name }}</option>
+                      {% endfor %}
                     </select>
                   </div>
                   <div class="form-group">
-                    <label for="branch_id">Magasin (si Manager)</label>
+                    <label for="branch_id">Magasin (si applicable)</label>
                     <select name="branch_id" class="form-select">
-                      <option value="">Aucun (pour Admin)</option>
+                      <option value="">Aucun</option>
                       {% for branch in branches %}
                       <option value="{{ branch.id }}" {% if u.branch_id == branch.id %}selected{% endif %}>{{ branch.name }}</option>
                       {% endfor %}
