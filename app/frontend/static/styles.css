@@ -43,6 +43,61 @@ body { margin: 0; -webkit-font-smoothing: antialiased; text-rendering: optimizeL
   --row-hover: rgba(124,92,255,.12);
 }
 
+/* Light theme overrides */
+html[data-theme='light']{
+  /* Surfaces */
+  --bg: #f6f8ff;
+  --bg-soft: #ffffff;
+  --bg-elev: #ffffff;
+
+  /* Text */
+  --text: #0e1320;
+  --muted: #4a5568;
+  --placeholder: #7a8699;
+
+  /* Brand & effects stay, لكن نخفف الزجاجي والحدود */
+  --glass: rgba(0,0,0,.04);
+  --glass-2: rgba(0,0,0,.06);
+  --border: 1px solid rgba(0,0,0,.08);
+
+  /* Tables */
+  --row-stripe: rgba(0,0,0,.035);
+  --row-hover: rgba(124,92,255,.10);
+}
+
+/* عناصر تتأثر بالخلفية */
+html[data-theme='light'] body{
+  background:
+    radial-gradient(950px 600px at -15% -20%, rgba(124,92,255,.10), transparent 50%),
+    radial-gradient(900px 700px at 120% 0%, rgba(33,212,253,.10), transparent 45%),
+    radial-gradient(650px 500px at 50% 120%, rgba(212,175,55,.08), transparent 50%),
+    var(--bg);
+}
+
+html[data-theme='light'] .navbar{
+  background: linear-gradient(90deg, rgba(255,255,255,.85), rgba(255,255,255,.65));
+  border-bottom: var(--border);
+}
+
+html[data-theme='light'] .sidebar{
+  background: linear-gradient(180deg, rgba(255,255,255,.95), rgba(255,255,255,.90));
+  border-right: var(--border);
+}
+
+html[data-theme='light'] .card, 
+html[data-theme='light'] .form-card, 
+html[data-theme='light'] .table-card{
+  background: linear-gradient(180deg, rgba(0,0,0,.04), rgba(0,0,0,.02));
+  border: var(--border);
+}
+
+html[data-theme='light'] .sidebar .nav-link.active{
+  color:#000;
+  background: linear-gradient(90deg, rgba(124,92,255,.18), rgba(33,212,253,.12));
+  box-shadow: inset 0 0 0 1px rgba(124,92,255,.35), 0 10px 22px rgba(124,92,255,.18);
+}
+
+
 /* ---------- Background FX ---------- */
 body{
   color: var(--text);
@@ -406,3 +461,14 @@ td.amount{ font-weight:800; }
 /* إن حبيت تزيد هوامش خارجية عامة تحت التبويب */
 .tab-content.card:not(.active) { display: none; }
 .tab-content.card.active { display: block; }
+
+/* Theme toggle button */
+.theme-toggle{
+  display:inline-flex; align-items:center; justify-content:center;
+  width:34px; height:34px; border-radius:10px; border:none; cursor:pointer;
+  background: linear-gradient(180deg, rgba(255,255,255,.12), rgba(255,255,255,.06));
+  color: var(--text);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.08);
+}
+.theme-toggle:hover{ transform: translateY(-1px); box-shadow: var(--shadow-1); }
+
