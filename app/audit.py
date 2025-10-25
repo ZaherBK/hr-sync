@@ -4,7 +4,8 @@ Utilitaires de journalisation d'audit.
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .models import AuditLog, Role # Assurer que Role est importé
+# --- MODIFIÉ : Role n'est plus nécessaire ici ---
+from .models import AuditLog
 from .schemas import AuditOut
 
 
@@ -34,22 +35,33 @@ async def log(
 async def latest(
     session: AsyncSession,
     limit: int = 50,
-    user_role: str | None = None,
+    #
+    # --- 1. CORRECTION ICI ---
+    #
+    user_is_admin: bool = False, # Accepte un booléen, pas user_role: str
+    #
+    # --- FIN CORRECTION ---
+    #
     branch_id: int | None = None,
     entity_types: list[str] | None = None # --- NOUVEAU: Filtre par type d'entité ---
 ) -> list[AuditOut]:
     """
     Retourne les entrées d'audit les plus récentes jusqu'à `limit`.
-    Filtre par branch_id si l'utilisateur est un manager.
+    Filtre par branch_id si l'utilisateur n'est pas admin.
     Filtre par entity_types si fourni (pour la page Paramètres).
     """
     stmt = select(AuditLog).order_by(AuditLog.created_at.desc())
 
-    # --- FILTRAGE PAR RÔLE (pour le tableau de bord) ---
-    if user_role == Role.manager.value and branch_id is not None:
-        # Les managers ne voient que les logs de LEUR magasin
+    #
+    # --- 2. CORRECTION ICI ---
+    #
+    # Les managers (non-admins) ne voient que les logs de LEUR magasin
+    if not user_is_admin and branch_id is not None:
         stmt = stmt.where(AuditLog.branch_id == branch_id)
-    # L'admin (user_role == 'admin') voit tout, donc pas de filtre de rôle.
+    # L'admin (user_is_admin=True) voit tout, donc pas de filtre.
+    #
+    # --- FIN CORRECTION ---
+    #
 
     # --- FILTRAGE PAR TYPE D'ENTITÉ (pour la page Paramètres) ---
     if entity_types:
