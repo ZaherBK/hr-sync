@@ -15,9 +15,11 @@ from starlette.middleware.sessions import SessionMiddleware
 from sqlalchemy import select, delete, func, case, extract, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+from sqlalchemy.future import select
+from . import models, schemas
 
-from .db import engine, Base, AsyncSessionLocal
-from .auth import authenticate_user, create_access_token, hash_password, ACCESS_TOKEN_EXPIRE_MINUTES, api_require_permission
+from .db import engine, Base, AsyncSessionLocal, get_db, AsyncSession
+from .auth import authenticate_user, create_access_token, hash_password, ACCESS_TOKEN_EXPIRE_MINUTES, api_require_permission, get_current_user_data_from_token
 # Importer TOUS les modèles nécessaires
 from .models import (
     Attendance, AttendanceType, Branch, Deposit, Employee, Leave, User, Pay, PayType, AuditLog, LeaveType,
@@ -66,6 +68,27 @@ app.add_middleware(
     secret_key=os.getenv("SECRET_KEY", "une_cle_secrete_tres_longue_et_aleatoire"),
     max_age=int(ACCESS_TOKEN_EXPIRE_MINUTES) * 60
 )
+
+# 1. Create a NEW dependency to get the FULL database user
+async def get_current_db_user(
+    db: AsyncSession = Depends(get_db), 
+    user_data: dict = Depends(get_current_user_data_from_token) # Use your existing dependency
+) -> models.User | None:
+    
+    if not user_data:
+        return None
+        
+    # Get the email (or ID) from your token's 'sub' field
+    user_email = user_data.get("sub") 
+    if not user_email:
+        return None
+
+    # This is the query that fetches the User AND its related Role (as 'permissions')
+    # The 'lazy="joined"' from Step 1 makes this work in one query.
+    result = await db.execute(
+        select(models.User).where(models.User.email == user_email)
+    )
+    return result.scalar_one_or_none()
 
 
 # --- 3. Startup Event (MODIFIÉ) ---
@@ -209,32 +232,24 @@ def _serialize_permissions(role: Role | None) -> dict:
 
 # --- 5. Routes des Pages Web (GET et POST) ---
 
-@app.get("/", response_class=HTMLResponse, name="home")
-async def home(request: Request, db: AsyncSession = Depends(get_db)):
-    """Affiche la page d'accueil (tableau de bord)."""
-    # --- MODIFIÉ : Utilise la nouvelle dépendance ---
-    try:
-        user = get_current_session_user(request)
-    except HTTPException:
-        # Pas connecté, rediriger vers login
-        return RedirectResponse(request.url_for('login_page'), status_code=status.HTTP_302_FOUND)
-    # --- FIN MODIFIÉ ---
+@router.get("/") # Or whatever your 'home' path is
+async def home(
+    request: Request,
+    # Use the NEW dependency here instead of the old one
+    current_user: models.User = Depends(get_current_db_user) 
+):
+    if not current_user:
+        # If no user, redirect to login
+        return RedirectResponse("/login", status_code=status.HTTP_302_FOUND)
 
-    # --- MODIFIÉ : Utilise le dict de permissions de la session ---
-    permissions = user.get("permissions", {})
-    latest_logs_list = await latest(
-        db, 
-        user_is_admin=permissions.get("is_admin", False),
-        branch_id=user.get("branch_id")
-    )
-    # --- FIN MODIFIÉ ---
-
+    # 'current_user' is now the FULL SQLAlchemy object, not a dict.
+    # 'current_user.permissions' will exist.
     context = {
         "request": request,
-        "user": user, # Le dict 'user' de la session contient maintenant 'permissions'
-        "app_name": APP_NAME,
-        "activity": latest_logs_list
+        "user": current_user  # Pass the full object to the template
     }
+    
+    # This line (from your error log) will now work
     return templates.TemplateResponse("dashboard.html", context)
 
 
