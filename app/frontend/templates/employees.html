@@ -45,7 +45,7 @@
                     {% if b.id == manager_branch_id %} {{ b.name }} ({{ b.city }}) {% endif %}
                 {% endfor %}
             </p>
-        {% elif user.role == 'admin' %}
+        {% elif user.permissions == 'admin' %}
             <select id="branch_id" name="branch_id" required>
                 <option value="" disabled selected>-- Choisir un magasin --</option>
                 {% for b in branches %}
