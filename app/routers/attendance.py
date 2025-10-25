@@ -29,7 +29,7 @@ async def create_attendance(
 
     # --- MODIFIÉ : Vérification de permission par branche ---
     # Un non-admin ne peut agir que sur son propre magasin
-    if not user.role.is_admin and user.branch_id != employee.branch_id:
+    if not user.permissions.is_admin and user.branch_id != employee.branch_id:
         raise HTTPException(status_code=403, detail="Not authorized for this branch")
     # --- FIN MODIFIÉ ---
 
