@@ -1,6 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi.responses import RedirectResponse
+from starlette import status
 
 from ..schemas import EmployeeCreate, EmployeeOut
 from ..models import Employee
@@ -34,3 +36,14 @@ async def list_employees(db: AsyncSession = Depends(get_db)):
     """List all active employees."""
     res = await db.execute(select(Employee).where(Employee.active == True))
     return res.scalars().all()
+
+@router.post("/delete/{employee_id}", dependencies=[Depends(api_require_permission("can_manage_employees"))])
+async def delete_employee(employee_id: int, db: AsyncSession = Depends(get_db)):
+    """Supprimer un employé"""
+    from ..models import Employee
+    emp = await db.get(Employee, employee_id)
+    if not emp:
+        raise HTTPException(status_code=404, detail="Employé introuvable")
+    await db.delete(emp)
+    await db.commit()
+    return RedirectResponse(url="/employees", status_code=status.HTTP_303_SEE_OTHER)
