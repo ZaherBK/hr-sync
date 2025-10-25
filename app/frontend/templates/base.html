@@ -15,43 +15,129 @@
 </head>
 <body>
 
+  <nav class="navbar fixed-top">
+    <div class="container-fluid">
+      <button class="navbar-toggler d-md-none" type="button" data-bs-toggle="collapse"
+              data-bs-target="#sidebarMenu" aria-controls="sidebarMenu" aria-expanded="false"
+              aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+
+      <a class="navbar-brand col-md-3 col-lg-2 me-0 px-3" href="{{ url_for('home') }}">
+        <img src="{{ url_for('static', path='/logo.png') }}" alt="Logo" class="d-inline-block align-text-top me-2">
+        {{ app_name }}
+      </a>
+
+      <div class="navbar-nav ms-auto">
+        <div class="nav-item d-flex align-items-center gap-2">
+          <button id="toggleTheme" class="theme-toggle" title="Toggle theme">
+            <i class="bi bi-moon-stars-fill"></i>
+          </button>
+          {% if user %}
+            <span class="nav-link px-3 d-none d-sm-block">Bonjour, {{ user.full_name }}</span>
+            <a class="nav-link px-3" href="{{ url_for('logout') }}" title="Déconnexion">
+              <i class="bi bi-box-arrow-right d-inline d-sm-none"></i>
+              <span class="d-none d-sm-inline">Déconnexion</span>
+            </a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </nav>
+
   <div class="container-fluid">
     <div class="row">
       <nav id="sidebarMenu" class="col-md-3 col-lg-2 d-md-block sidebar collapse">
         <div class="position-sticky sidebar-sticky">
           <ul class="nav flex-column">
+            <li class="nav-item">
+              <a class="nav-link {% if request.url.path == url_for('home') %}active{% endif %}"
+                 href="{{ url_for('home') }}">
+                <i class="bi bi-house-door-fill"></i> Tableau de bord
+              </a>
+            </li>
+
+            {% if user.permissions.is_admin or user.permissions.can_manage_absences or user.permissions.can_manage_deposits or user.permissions.can_manage_leaves or user.permissions.can_manage_pay %}
+            <h6 class="sidebar-heading px-3 mt-3 mb-1">Gestion</h6>
+            {% endif %}
             
-            {% if user.role == 'admin' %}
+            {% if user.permissions.is_admin or user.permissions.can_manage_absences %}
+            <li class="nav-item">
+              <a class="nav-link {% if request.url.path == url_for('attendance_page') %}active{% endif %}"
+                 href="{{ url_for('attendance_page') }}">
+                <i class="bi bi-person-x-fill"></i> Absences
+              </a>
+            </li>
+            {% endif %}
+            
+            {% if user.permissions.is_admin or user.permissions.can_manage_deposits %}
+            <li class="nav-item">
+              <a class="nav-link {% if request.url.path == url_for('deposits_page') %}active{% endif %}"
+                 href="{{ url_for('deposits_page') }}">
+                <i class="bi bi-cash-coin"></i> Avances
+              </a>
+            </li>
+            {% endif %}
+            
+            {% if user.permissions.is_admin or user.permissions.can_manage_leaves %}
+            <li class="nav-item">
+              <a class="nav-link {% if request.url.path == url_for('leaves_page') %}active{% endif %}"
+                 href="{{ url_for('leaves_page') }}">
+                <i class="bi bi-calendar-check-fill"></i> Congés
+              </a>
+            </li>
+            {% endif %}
+            
+            {% if user.permissions.is_admin or user.permissions.can_manage_pay %}
+            <li class="nav-item">
+              <a class="nav-link {% if request.url.path == url_for('pay_employee_page') %}active{% endif %}"
+                 href="{{ url_for('pay_employee_page') }}">
+                <i class="bi bi-wallet-fill"></i> Paiements
+              </a>
+            </li>
+            {% endif %}
+            {% if user.permissions.is_admin or user.permissions.can_manage_employees or user.permissions.can_view_reports or user.permissions.can_manage_users or user.permissions.can_view_settings %}
             <h6 class="sidebar-heading px-3 mt-3 mb-1">Administration</h6>
             <ul class="nav flex-column mb-2">
+              
+              {% if user.permissions.is_admin or user.permissions.can_manage_employees %}
               <li class="nav-item">
                 <a class="nav-link {% if request.url.path == url_for('employees_page') %}active{% endif %}"
                    href="{{ url_for('employees_page') }}">
                   <i class="bi bi-people-fill"></i> Employés
                 </a>
               </li>
+              {% endif %}
+              
+              {% if user.permissions.is_admin or user.permissions.can_view_reports %}
               <li class="nav-item">
                 <a class="nav-link {% if request.url.path == url_for('employee_report_index') %}active{% endif %}"
                    href="{{ url_for('employee_report_index') }}">
                   <i class="bi bi-file-earmark-person-fill"></i> Rapports
                 </a>
               </li>
+              {% endif %}
               
+              {% if user.permissions.is_admin or user.permissions.can_manage_users %}
               <li class="nav-item">
                 <a class="nav-link {% if request.url.path == url_for('users_page') %}active{% endif %}"
                    href="{{ url_for('users_page') }}">
-                  <i class="bi bi-person-shield-fill"></i> Utilisateurs
+                  <i class="fa-solid fa-users-cog"></i> Utilisateurs
                 </a>
               </li>
+              {% endif %}
+              
+              {% if user.permissions.is_admin or user.permissions.can_view_settings %}
               <li class="nav-item">
                 <a class="nav-link {% if request.url.path == url_for('settings_page') %}active{% endif %}"
                    href="{{ url_for('settings_page') }}">
                   <i class="bi bi-gear-fill"></i> Paramètres
                 </a>
               </li>
+              {% endif %}
             </ul>
             {% endif %}
-          </ul>
+            </ul>
         </div>
       </nav>
 
