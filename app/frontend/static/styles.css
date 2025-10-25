@@ -43,58 +43,81 @@ body { margin: 0; -webkit-font-smoothing: antialiased; text-rendering: optimizeL
   --row-hover: rgba(124,92,255,.12);
 }
 
-/* Light theme overrides */
+/* ==== Light mode – Comfort fix (softer background, better contrast) ==== */
+
+/* 1) softer palette */
 html[data-theme='light']{
-  /* Surfaces */
-  --bg: #f6f8ff;
+  --bg: #eef2f7;            /* بدل #f6f8ff */
   --bg-soft: #ffffff;
   --bg-elev: #ffffff;
 
-  /* Text */
-  --text: #0e1320;
-  --muted: #4a5568;
-  --placeholder: #7a8699;
+  --text: #0b1220;          /* نص أغمق بشوي */
+  --muted: #5a6478;
+  --placeholder: #77839a;
 
-  /* Brand & effects stay, لكن نخفف الزجاجي والحدود */
-  --glass: rgba(0,0,0,.04);
-  --glass-2: rgba(0,0,0,.06);
-  --border: 1px solid rgba(0,0,0,.08);
+  --glass: rgba(0,0,0,.03); /* زجاجي أخف */
+  --glass-2: rgba(0,0,0,.05);
+  --border: 1px solid rgba(0,0,0,.10);
 
-  /* Tables */
-  --row-stripe: rgba(0,0,0,.035);
-  --row-hover: rgba(124,92,255,.10);
+  --row-stripe: rgba(0,0,0,.025);
+  --row-hover: rgba(124,92,255,.08);
 }
 
-/* عناصر تتأثر بالخلفية */
+/* 2) قلّل وهج الخلفية العامة */
 html[data-theme='light'] body{
   background:
-    radial-gradient(950px 600px at -15% -20%, rgba(124,92,255,.10), transparent 50%),
-    radial-gradient(900px 700px at 120% 0%, rgba(33,212,253,.10), transparent 45%),
-    radial-gradient(650px 500px at 50% 120%, rgba(212,175,55,.08), transparent 50%),
+    radial-gradient(950px 600px at -15% -20%, rgba(124,92,255,.07), transparent 55%),
+    radial-gradient(900px 700px at 120% 0%, rgba(33,212,253,.07), transparent 55%),
+    radial-gradient(650px 500px at 50% 120%, rgba(212,175,55,.06), transparent 55%),
     var(--bg);
 }
 
-html[data-theme='light'] .navbar{
-  background: linear-gradient(90deg, rgba(255,255,255,.85), rgba(255,255,255,.65));
-  border-bottom: var(--border);
+/* 3) بطاقات أوضح بدون لمعان مزعج */
+html[data-theme='light'] .card,
+html[data-theme='light'] .form-card,
+html[data-theme='light'] .table-card{
+  background: linear-gradient(180deg, rgba(255,255,255,.88), rgba(255,255,255,.92));
+  border: var(--border);
+  box-shadow: 0 6px 18px rgba(16,24,40,.06);
 }
 
+/* 4) مدخلات: كانت داكنة حتى في الوضع الفاتح — خلّيها فاتحة ومقروءة */
+html[data-theme='light'] input[type="text"],
+html[data-theme='light'] input[type="date"],
+html[data-theme='light'] input[type="number"],
+html[data-theme='light'] input[type="password"],
+html[data-theme='light'] .form-control,
+html[data-theme='light'] select,
+html[data-theme='light'] .form-select{
+  background: linear-gradient(180deg, #f2f5fb, #e9eef7); /* رمادي أزرق لطيف */
+  border: 1px solid #cfd6e6;
+  color: var(--text);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.6);
+}
+html[data-theme='light'] ::placeholder{ color: var(--placeholder); }
+html[data-theme='light'] input:focus,
+html[data-theme='light'] select:focus,
+html[data-theme='light'] .form-control:focus,
+html[data-theme='light'] .form-select:focus{
+  outline: none;
+  border-color: #b8c2dc;
+  box-shadow: 0 0 0 3px rgba(124,92,255,.22);
+}
+
+/* 5) شريط علوي وجانبي أقل شفافية (تباين أفضل) */
+html[data-theme='light'] .navbar{
+  background: linear-gradient(90deg, rgba(255,255,255,.95), rgba(255,255,255,.85));
+  border-bottom: var(--border);
+}
 html[data-theme='light'] .sidebar{
-  background: linear-gradient(180deg, rgba(255,255,255,.95), rgba(255,255,255,.90));
+  background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(255,255,255,.94));
   border-right: var(--border);
 }
 
-html[data-theme='light'] .card, 
-html[data-theme='light'] .form-card, 
-html[data-theme='light'] .table-card{
-  background: linear-gradient(180deg, rgba(0,0,0,.04), rgba(0,0,0,.02));
-  border: var(--border);
-}
-
-html[data-theme='light'] .sidebar .nav-link.active{
-  color:#000;
-  background: linear-gradient(90deg, rgba(124,92,255,.18), rgba(33,212,253,.12));
-  box-shadow: inset 0 0 0 1px rgba(124,92,255,.35), 0 10px 22px rgba(124,92,255,.18);
+/* 6) رأس الجدول ونصوص أهدأ */
+html[data-theme='light'] thead th{
+  color:#44506a;
+  background: rgba(0,0,0,.04);
 }
 
 
