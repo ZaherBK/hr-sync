@@ -18,7 +18,7 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy.future import select
 from . import models, schemas
 
-from .db import engine, Base, AsyncSessionLocal, get_db, AsyncSession
+from .db import engine, Base, AsyncSessionLocal, get_db
 from .auth import authenticate_user, create_access_token, hash_password, ACCESS_TOKEN_EXPIRE_MINUTES, api_require_permission, get_current_user_data_from_token
 # Importer TOUS les modèles nécessaires
 from .models import (
