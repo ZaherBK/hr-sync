@@ -670,6 +670,209 @@ async def pay_employee_action(
         status_code=status.HTTP_302_FOUND
     )
 
+# --- 
+# --- ❗️❗️ DÉBUT DES NOUVELLES ROUTES UTILISATEUR ❗️❗️
+# ---
+
+@app.get("/users", response_class=HTMLResponse, name="users_page")
+async def users_page(request: Request, db: AsyncSession = Depends(get_db)):
+    """Affiche la page de gestion des utilisateurs (Admin seulement)."""
+    user = _get_user_from_session(request)
+    if not user or user["role"] != Role.admin.value:
+        return RedirectResponse(request.url_for('home'), status_code=status.HTTP_302_FOUND)
+
+    # L'admin a besoin de tous les utilisateurs (avec leur magasin) et de tous les magasins
+    res_users = await db.execute(
+        select(User).options(selectinload(User.branch)).order_by(User.full_name)
+    )
+    res_branches = await db.execute(select(Branch).order_by(Branch.name))
+
+    context = {
+        "request": request,
+        "user": user,
+        "app_name": APP_NAME,
+        "users": res_users.scalars().all(),
+        "branches": res_branches.scalars().all(),
+    }
+    return templates.TemplateResponse("users.html", context)
+
+
+@app.post("/users/create", name="users_create")
+async def users_create(
+    request: Request,
+    full_name: Annotated[str, Form()],
+    email: Annotated[str, Form()],
+    password: Annotated[str, Form()],
+    role: Annotated[Role, Form()],
+    branch_id: Annotated[int, Form()] = None,
+    db: AsyncSession = Depends(get_db),
+):
+    """Crée un nouvel utilisateur (Admin seulement)."""
+    user = _get_user_from_session(request)
+    if not user or user["role"] != Role.admin.value:
+        return RedirectResponse(request.url_for('home'), status_code=status.HTTP_302_FOUND)
+
+    # Vérifier si l'email existe déjà
+    res_exist = await db.execute(select(User).where(User.email == email))
+    if res_exist.scalar_one_or_none():
+        # Gérer l'erreur (idéalement, renvoyer un message flash)
+        return RedirectResponse(request.url_for('users_page'), status_code=status.HTTP_302_FOUND)
+        
+    # Si le rôle est admin, forcer branch_id à None
+    # Si le rôle est manager, s'assurer qu'un branch_id est fourni
+    if role == Role.admin:
+        final_branch_id = None
+    elif role == Role.manager and not branch_id:
+        # Erreur : un manager doit avoir un magasin
+        return RedirectResponse(request.url_for('users_page'), status_code=status.HTTP_302_FOUND)
+    else:
+        final_branch_id = branch_id
+
+    new_user = User(
+        full_name=full_name,
+        email=email,
+        hashed_password=hash_password(password),
+        role=role,
+        branch_id=final_branch_id,
+        is_active=True
+    )
+    db.add(new_user)
+    await db.commit()
+    await db.refresh(new_user)
+
+    await log(
+        db, user['id'], "create", "user", new_user.id,
+        new_user.branch_id, f"Utilisateur créé: {new_user.email} (Rôle: {new_user.role.value})"
+    )
+    
+    return RedirectResponse(request.url_for('users_page'), status_code=status.HTTP_302_FOUND)
+
+
+@app.post("/users/{user_id}/update", name="users_update")
+async def users_update(
+    request: Request,
+    user_id: int,
+    full_name: Annotated[str, Form()],
+    email: Annotated[str, Form()],
+    role: Annotated[Role, Form()],
+    is_active: Annotated[bool, Form()] = False,
+    branch_id: Annotated[int, Form()] = None,
+    db: AsyncSession = Depends(get_db),
+):
+    """Met à jour un utilisateur (Admin seulement)."""
+    admin_user = _get_user_from_session(request)
+    if not admin_user or admin_user["role"] != Role.admin.value:
+        return RedirectResponse(request.url_for('home'), status_code=status.HTTP_302_FOUND)
+
+    res_user = await db.execute(select(User).where(User.id == user_id))
+    user_to_update = res_user.scalar_one_or_none()
+    if not user_to_update:
+        return RedirectResponse(request.url_for('users_page'), status_code=status.HTTP_302_FOUND)
+
+    # Vérifier si le nouvel email est déjà pris par un AUTRE utilisateur
+    if user_to_update.email != email:
+        res_exist = await db.execute(select(User).where(User.email == email, User.id != user_id))
+        if res_exist.scalar_one_or_none():
+            # Gérer l'erreur
+            return RedirectResponse(request.url_for('users_page'), status_code=status.HTTP_302_FOUND)
+    
+    # Logique Admin/Manager/Magasin
+    if role == Role.admin:
+        final_branch_id = None
+    elif role == Role.manager and not branch_id:
+        # Erreur : un manager doit avoir un magasin
+        return RedirectResponse(request.url_for('users_page'), status_code=status.HTTP_302_FOUND)
+    else:
+        final_branch_id = branch_id
+
+    # Mettre à jour les champs
+    user_to_update.full_name = full_name
+    user_to_update.email = email
+    user_to_update.role = role
+    user_to_update.branch_id = final_branch_id
+    user_to_update.is_active = is_active # 'is_active' sera False si la case n'est pas cochée
+    
+    await db.commit()
+
+    await log(
+        db, admin_user['id'], "update", "user", user_to_update.id,
+        user_to_update.branch_id, f"Utilisateur mis à jour: {user_to_update.email}"
+    )
+
+    return RedirectResponse(request.url_for('users_page'), status_code=status.HTTP_302_FOUND)
+
+
+@app.post("/users/{user_id}/password", name="users_password")
+async def users_password(
+    request: Request,
+    user_id: int,
+    password: Annotated[str, Form()],
+    db: AsyncSession = Depends(get_db),
+):
+    """Réinitialise le mot de passe d'un utilisateur (Admin seulement)."""
+    admin_user = _get_user_from_session(request)
+    if not admin_user or admin_user["role"] != Role.admin.value:
+        return RedirectResponse(request.url_for('home'), status_code=status.HTTP_302_FOUND)
+
+    res_user = await db.execute(select(User).where(User.id == user_id))
+    user_to_update = res_user.scalar_one_or_none()
+    
+    if not user_to_update or len(password) < 6:
+        return RedirectResponse(request.url_for('users_page'), status_code=status.HTTP_302_FOUND)
+
+    user_to_update.hashed_password = hash_password(password)
+    await db.commit()
+
+    await log(
+        db, admin_user['id'], "update_password", "user", user_to_update.id,
+        user_to_update.branch_id, f"Mot de passe réinitialisé pour: {user_to_update.email}"
+    )
+
+    return RedirectResponse(request.url_for('users_page'), status_code=status.HTTP_302_FOUND)
+
+
+@app.post("/users/{user_id}/delete", name="users_delete")
+async def users_delete(
+    request: Request,
+    user_id: int,
+    db: AsyncSession = Depends(get_db),
+):
+    """Supprime un utilisateur (Admin seulement)."""
+    admin_user = _get_user_from_session(request)
+    if not admin_user or admin_user["role"] != Role.admin.value:
+        return RedirectResponse(request.url_for('home'), status_code=status.HTTP_302_FOUND)
+        
+    # Sécurité : L'admin ne peut pas se supprimer lui-même
+    if admin_user['id'] == user_id:
+        return RedirectResponse(request.url_for('users_page'), status_code=status.HTTP_302_FOUND)
+
+    res_user = await db.execute(select(User).where(User.id == user_id))
+    user_to_delete = res_user.scalar_one_or_none()
+    
+    if not user_to_delete:
+        return RedirectResponse(request.url_for('users_page'), status_code=status.HTTP_302_FOUND)
+
+    # Note : Gérer les relations (logs, etc.) si nécessaire. 
+    # Pour l'instant, on supprime juste l'utilisateur.
+    # Les logs d'audit feront référence à un ID supprimé, ce qui est OK.
+    
+    user_email = user_to_delete.email
+    user_branch_id = user_to_delete.branch_id
+    
+    await db.delete(user_to_delete)
+    await db.commit()
+
+    await log(
+        db, admin_user['id'], "delete", "user", user_id,
+        user_branch_id, f"Utilisateur supprimé: {user_email}"
+    )
+
+    return RedirectResponse(request.url_for('users_page'), status_code=status.HTTP_302_FOUND)
+
+
+# --- 
+# --- FIN DES NOUVELLES ROUTES UTILISATEUR ❗️❗️
+# ---
 
 # --- Page Paramètres ---
 @app.get("/settings", response_class=HTMLResponse, name="settings_page")
