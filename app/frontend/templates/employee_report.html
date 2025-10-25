@@ -50,7 +50,7 @@
 </div>
 
 <!-- Onglets -->
-<div class="tabs-nav luxe-tabs">
+<div class="tabs-luxe">
   <a href="#paie" class="tab-link active"><i class="fa-solid fa-coins"></i> Paie</a>
   <a href="#avances" class="tab-link"><i class="fa-solid fa-hand-holding-dollar"></i> Avances</a>
   <a href="#absences" class="tab-link"><i class="fa-regular fa-calendar-xmark"></i> Absences</a>
@@ -171,19 +171,21 @@
 {% block body_extra %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-  const tabLinks = document.querySelectorAll('.tabs-nav .tab-link');
-  const tabContents = document.querySelectorAll('.tabs-container .tab-content');
+  const tabLinks = document.querySelectorAll('.tabs-luxe .tab-link');
+  const tabContents = document.querySelectorAll('.tab-content');
 
   tabLinks.forEach(link => {
-    link.addEventListener('click', function(event) {
-      event.preventDefault();
-      const targetId = this.getAttribute('href');
+    link.addEventListener('click', e => {
+      e.preventDefault();
+      const target = link.getAttribute('href');
 
-      tabContents.forEach(content => content.style.display = 'none');
+      // إزالة التبويب النشط وإخفاء المحتوى القديم
       tabLinks.forEach(l => l.classList.remove('active'));
+      tabContents.forEach(c => c.style.display = 'none');
 
-      document.querySelector(targetId).style.display = 'block';
-      this.classList.add('active');
+      // تفعيل التبويب المطلوب
+      link.classList.add('active');
+      document.querySelector(target).style.display = 'block';
     });
   });
 });
