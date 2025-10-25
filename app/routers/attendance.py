@@ -1,54 +1,43 @@
-"""
-Attendance API endpoints.
-
-Allows managers and administrators to record attendance for employees and list
-all attendance records.
-"""
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..schemas import AttendanceCreate, AttendanceOut
-from ..models import Attendance, Role
-from ..auth import require_role
-from ..deps import get_db, current_user
-from ..audit import log
+from ..models import Attendance, Employee, User
+# --- MODIFIÉ ---
+from ..auth import api_require_permission
+from ..deps import get_db, api_current_user # Renommé
+# --- FIN MODIFIÉ ---
 
 router = APIRouter(prefix="/api/attendance", tags=["attendance"])
 
-
-@router.post("/", response_model=AttendanceOut, dependencies=[Depends(require_role(Role.admin, Role.manager))])
-async def mark_attendance(
-    payload: AttendanceCreate,
+# --- MODIFIÉ : Utilise la nouvelle dépendance de permission ---
+@router.post("/", response_model=AttendanceOut, dependencies=[Depends(api_require_permission("can_manage_absences"))])
+# --- FIN MODIFIÉ ---
+async def create_attendance(
+    payload: AttendanceCreate, 
     db: AsyncSession = Depends(get_db),
-    user=Depends(current_user),
-) -> AttendanceOut:
-    """Record attendance for an employee (admins and managers only)."""
+    user: User = Depends(api_current_user) # Renommé
+):
+    """Log a new attendance record (e.g., absence)."""
+    
+    # Validation
+    res = await db.execute(select(Employee).where(Employee.id == payload.employee_id))
+    employee = res.scalar_one_or_none()
+    if not employee:
+        raise HTTPException(status_code=404, detail="Employee not found")
+
+    # --- MODIFIÉ : Vérification de permission par branche ---
+    # Un non-admin ne peut agir que sur son propre magasin
+    if not user.role.is_admin and user.branch_id != employee.branch_id:
+        raise HTTPException(status_code=403, detail="Not authorized for this branch")
+    # --- FIN MODIFIÉ ---
+
     attendance = Attendance(
-        employee_id=payload.employee_id,
-        date=payload.date,
-        atype=payload.atype,
-        note=payload.note,
-        created_by=user.id,
+        **payload.model_dump(),
+        created_by=user.id
     )
     db.add(attendance)
     await db.commit()
     await db.refresh(attendance)
-    # Log the action
-    await log(
-        db,
-        actor_id=user.id,
-        action="create",
-        entity="attendance",
-        entity_id=attendance.id,
-        branch_id=user.branch_id,
-        details=f"employee={payload.employee_id} {payload.atype.value} {payload.date}",
-    )
-    return AttendanceOut.model_validate(attendance)
-
-
-@router.get("/", response_model=list[AttendanceOut])
-async def list_attendance(db: AsyncSession = Depends(get_db)) -> list[AttendanceOut]:
-    """List all attendance records."""
-    res = await db.execute(select(Attendance))
-    return [AttendanceOut.model_validate(x) for x in res.scalars().all()]
+    return attendance
