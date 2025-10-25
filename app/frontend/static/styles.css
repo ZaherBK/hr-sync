@@ -384,11 +384,4 @@ td.amount{ font-weight:800; }
   border-color: rgba(124,92,255,.5);
 }
 
-.tab-content {
-  display: none;
-}
-
-.tab-content:first-of-type {
-  display: block; /* افتراضياً أول تبويب ظاهر */
-}
 
