@@ -219,3 +219,58 @@ class AuditOut(BaseModel):
     details: Optional[str]
     created_at: datetime
     model_config = ConfigDict(from_attributes=True)
+
+# --- Loans Schemas ---
+class LoanBase(BaseModel):
+    employee_id: int
+    principal: Decimal = Field(..., gt=0, max_digits=12, decimal_places=3)
+    interest_type: Literal["none", "flat", "reducing"]
+    annual_interest_rate: Decimal | None = Field(None, ge=0, max_digits=7, decimal_places=4)
+    term_count: int = Field(..., gt=0, le=480)
+    term_unit: Literal["week", "month"]
+    start_date: date
+    first_due_date: date | None = None
+    fee: Decimal | None = Field(None, ge=0, max_digits=10, decimal_places=3)
+    notes: str | None = None
+
+class LoanCreate(LoanBase):
+    pass
+
+class LoanOut(LoanBase):
+    id: int
+    status: Literal["draft","approved","active","paid","defaulted","canceled"]
+    scheduled_total: Decimal
+    repaid_total: Decimal
+    outstanding_principal: Decimal
+    next_due_on: date | None
+    created_by: int
+    class Config: from_attributes = True
+
+class LoanScheduleOut(BaseModel):
+    id: int
+    loan_id: int
+    sequence_no: int
+    due_date: date
+    due_principal: Decimal
+    due_interest: Decimal
+    due_total: Decimal
+    paid_principal: Decimal
+    paid_interest: Decimal
+    paid_total: Decimal
+    paid_on: date | None
+    status: Literal["pending","partial","paid","overdue"]
+    class Config: from_attributes = True
+
+class RepaymentCreate(BaseModel):
+    amount: Decimal = Field(..., gt=0, max_digits=12, decimal_places=3)
+    source: Literal["payroll","cash","adjustment"]
+    paid_on: date
+    schedule_id: int | None = None
+    notes: str | None = None
+
+class RepaymentOut(RepaymentCreate):
+    id: int
+    loan_id: int
+    created_by: int
+    class Config: from_attributes = True
+
