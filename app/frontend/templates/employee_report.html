@@ -79,8 +79,7 @@
     <p class="no-data" style="padding:1rem;">Aucun historique de paie pour cet employé.</p>
   {% endif %}
 </div>
-
-<div id="avances" class="tab-content card">
+</div> <div id="avances" class="tab-content card">
   <h4 class="section-title"><i class="fa-solid fa-money-bill-transfer"></i> Historique des Avances</h4>
   <div class="section-body">
     {% if deposits and deposits|length > 0 %}
@@ -103,8 +102,7 @@
       <p class="no-data" style="padding:1rem;">Aucune avance pour cet employé.</p>
   {% endif %}
 </div>
-
-<div id="absences" class="tab-content card">
+</div> <div id="absences" class="tab-content card">
   <h4 class="section-title"><i class="fa-regular fa-calendar-xmark"></i> Historique des Absences</h4>
   <div class="section-body">
     {% if absences and absences|length > 0 %}
@@ -126,8 +124,7 @@
     <p class="no-data" style="padding:1rem;">Aucune absence enregistrée pour cet employé.</p>
   {% endif %}
 </div>
-
-<div id="conges" class="tab-content card">
+</div> <div id="conges" class="tab-content card">
   <h4 class="section-title"><i class="fa-solid fa-umbrella-beach"></i> Historique des Congés</h4>
   <div class="section-body">
     {% if leaves and leaves|length > 0 %}
@@ -161,7 +158,7 @@
     <p class="no-data" style="padding:1rem;">Aucun congé enregistré pour cet employé.</p>
   {% endif %}
 </div>
-{% endif %}
+</div> {% endif %}
 {% endblock %}
 
 {% block body_extra %}
