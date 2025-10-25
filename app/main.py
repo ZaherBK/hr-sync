@@ -82,8 +82,8 @@ async def on_startup() -> None:
     try:
         async with AsyncSessionLocal() as session:
             # --- 1. Vérifier si le rôle Admin existe ---
-            res = await session.execute(select(Role).where(Role.name == "Admin"))
-            admin_role = res.scalar_one_or_none()
+            res_admin_role = await session.execute(select(Role).where(Role.name == "Admin"))
+            admin_role = res_admin_role.scalar_one_or_none()
             
             if not admin_role:
                 print("Base de données vide, ajout des rôles et utilisateurs initiaux (seed)...")
@@ -124,46 +124,70 @@ async def on_startup() -> None:
                 session.add_all([admin_role, manager_role])
                 await session.flush() # Pour obtenir les IDs
 
-                # --- 3. Créer les Magasins ---
-                branch_ariana = Branch(name="Magasin Ariana", city="Ariana")
-                branch_nabeul = Branch(name="Magasin Nabeul", city="Nabeul")
-                session.add_all([branch_ariana, branch_nabeul])
-                await session.flush() # Pour obtenir les IDs
+                #
+                # --- 3. VÉRIFIER ET CRÉER LES MAGASINS (C'EST LA CORRECTION) ---
+                #
+                res_branch = await session.execute(select(Branch).where(Branch.name == "Magasin Ariana"))
+                branch_ariana = res_branch.scalar_one_or_none()
+                
+                if not branch_ariana:
+                    print("Ajout des magasins par défaut...")
+                    branch_ariana = Branch(name="Magasin Ariana", city="Ariana")
+                    branch_nabeul = Branch(name="Magasin Nabeul", city="Nabeul")
+                    session.add_all([branch_ariana, branch_nabeul])
+                    await session.flush() # Pour obtenir les IDs
+                else:
+                    print("Magasins déjà présents, récupération...")
+                    # Récupérer l'autre magasin pour être sûr
+                    res_nabeul = await session.execute(select(Branch).where(Branch.name == "Magasin Nabeul"))
+                    branch_nabeul = res_nabeul.scalar_one()
+                #
+                # --- FIN DE LA CORRECTION ---
+                #
 
                 # --- 4. Créer les Utilisateurs initiaux ---
-                users_to_create = [
-                    User(
-                        email="zaher@local",
-                        full_name="Zaher (Admin)",
-                        role_id=admin_role.id, # Assigner l'ID du rôle
-                        hashed_password=hash_password("zah1405"),
-                        is_active=True,
-                        branch_id=None
-                    ),
-                    User(
-                        email="ariana@local",
-                        full_name="Ariana (Manager)",
-                        role_id=manager_role.id, # Assigner l'ID du rôle
-                        hashed_password=hash_password("ar123"),
-                        is_active=True,
-                        branch_id=branch_ariana.id
-                    ),
-                    User(
-                        email="nabeul@local",
-                        full_name="Nabeul (Manager)",
-                        role_id=manager_role.id, # Assigner l'ID du rôle
-                        hashed_password=hash_password("na123"),
-                        is_active=True,
-                        branch_id=branch_nabeul.id
-                    ),
-                ]
-                session.add_all(users_to_create)
-                await session.commit()
-                print(f"✅ Rôles, Magasins et {len(users_to_create)} utilisateurs créés avec succès !")
+                # Vérifier si l'admin existe
+                res_admin_user = await session.execute(select(User).where(User.email == "zaher@local"))
+                
+                if res_admin_user.scalar_one_or_none() is None:
+                    print("Ajout des utilisateurs initiaux...")
+                    users_to_create = [
+                        User(
+                            email="zaher@local",
+                            full_name="Zaher (Admin)",
+                            role_id=admin_role.id, # Assigner l'ID du rôle
+                            hashed_password=hash_password("zah1405"),
+                            is_active=True,
+                            branch_id=None
+                        ),
+                        User(
+                            email="ariana@local",
+                            full_name="Ariana (Manager)",
+                            role_id=manager_role.id, # Assigner l'ID du rôle
+                            hashed_password=hash_password("ar123"),
+                            is_active=True,
+                            branch_id=branch_ariana.id
+                        ),
+                        User(
+                            email="nabeul@local",
+                            full_name="Nabeul (Manager)",
+                            role_id=manager_role.id, # Assigner l'ID du rôle
+                            hashed_password=hash_password("na123"),
+                            is_active=True,
+                            branch_id=branch_nabeul.id
+                        ),
+                    ]
+                    session.add_all(users_to_create)
+                    await session.commit()
+                    print(f"✅ Rôles, Magasins et {len(users_to_create)} utilisateurs créés avec succès !")
+                else:
+                    print("Utilisateur admin déjà présent, commit des rôles/magasins si nécessaire.")
+                    await session.commit()
             else:
                 print("Données initiales déjà présentes. Seeding ignoré.")
     except Exception as e:
         print(f"Erreur pendant le seeding initial : {e}")
+        await session.rollback() # Annuler les changements en cas d'erreur
 
 
 # --- 4. Fonctions d'aide (Helper Functions) ---
