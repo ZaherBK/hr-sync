@@ -4,10 +4,10 @@ Point d'entrée de l'application FastAPI pour la gestion RH de la Bijouterie.
 import os
 from datetime import timedelta, date as dt_date, datetime
 from decimal import Decimal
-from typing import Annotated, List, Optional # --- AJOUTÉ ---
-import json # --- AJOUTÉ ---
+from typing import Annotated, List, Optional
+import json
 
-from fastapi import Depends, FastAPI, Form, HTTPException, Request, status
+from fastapi import Depends, FastAPI, Form, HTTPException, Request, status, APIRouter # --- AJOUTÉ APIRouter ---
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -18,17 +18,17 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy.future import select
 from . import models, schemas
 
-from .db import engine, Base, AsyncSessionLocal, get_db
-# /app/main.py
+# --- CORRIGÉ : Import de get_db depuis .deps ---
+from .db import engine, Base, AsyncSessionLocal
 from .auth import authenticate_user, create_access_token, hash_password, ACCESS_TOKEN_EXPIRE_MINUTES, api_require_permission
+# --- FIN CORRIGÉ ---
+
 # Importer TOUS les modèles nécessaires
 from .models import (
     Attendance, AttendanceType, Branch, Deposit, Employee, Leave, User, Pay, PayType, AuditLog, LeaveType,
-    Role # --- AJOUTÉ : Importer le nouveau modèle Role ---
+    Role
 )
-# --- AJOUTÉ : Importer les nouveaux schémas de Rôle ---
 from .schemas import RoleCreate, RoleUpdate
-# --- FIN AJOUTÉ ---
 
 from .audit import latest, log
 from .routers import users, branches, employees as employees_api, attendance as attendance_api, leaves as leaves_api, deposits as deposits_api
@@ -71,7 +71,6 @@ app.add_middleware(
 )
 
 # 1. Create a NEW dependency to get the FULL database user
-# /app/main.py
 async def get_current_db_user(
     db: AsyncSession = Depends(get_db), 
     user_data: dict = Depends(get_current_session_user) # <--- FIX 1
@@ -86,9 +85,8 @@ async def get_current_db_user(
         return None
 
     # This is the query that fetches the User AND its related Role
-    # (which you renamed to 'permissions' in your model)
     result = await db.execute(
-        select(models.User).where(models.User.email == user_email)
+        select(models.User).options(selectinload(models.User.permissions)).where(models.User.email == user_email)
     )
     return result.scalar_one_or_none()
 
@@ -217,12 +215,6 @@ async def on_startup() -> None:
 
 # --- 4. Fonctions d'aide (Helper Functions) ---
 
-# --- MODIFIÉ : Cette fonction est maintenant dans deps.py ---
-# def _get_user_from_session(request: Request) -> dict | None:
-#     """Récupère les informations utilisateur de la session."""
-#     return request.session.get("user")
-# --- FIN MODIFIÉ ---
-
 # --- NOUVELLE FONCTION D'AIDE ---
 def _serialize_permissions(role: Role | None) -> dict:
     """Convertit un objet Role en un dictionnaire de permissions pour la session."""
@@ -234,7 +226,8 @@ def _serialize_permissions(role: Role | None) -> dict:
 
 # --- 5. Routes des Pages Web (GET et POST) ---
 
-@router.get("/") # Or whatever your 'home' path is
+# --- CORRIGÉ : Utilise @app.get au lieu de @router.get ---
+@app.get("/", response_class=HTMLResponse, name="home")
 async def home(
     request: Request,
     # Use the NEW dependency here instead of the old one
@@ -283,11 +276,9 @@ async def login_action(
         return templates.TemplateResponse("login.html", context, status_code=status.HTTP_401_UNAUTHORIZED)
 
     # --- MODIFIÉ : Création de la session avec permissions ---
-    permissions_dict = _serialize_permissions(user.role)
+    # NOTE: Assurez-vous que votre modèle User a 'permissions' comme nom de relation
+    permissions_dict = _serialize_permissions(user.permissions) # <--- CHANGÉ de user.role à user.permissions
 
-    # Créer un faux token n'est plus nécessaire pour la session web
-    # si nous n'utilisons pas le token pour authentifier la session elle-même.
-    
     request.session["user"] = {
         "email": user.email,
         "id": user.id,
@@ -923,7 +914,7 @@ async def users_page(
     """Affiche la page de gestion des utilisateurs (Admin seulement)."""
     
     res_users = await db.execute(
-        select(User).options(selectinload(User.branch), selectinload(User.role)).order_by(User.full_name)
+        select(User).options(selectinload(User.branch), selectinload(User.permissions)).order_by(User.full_name) # <--- Utilise 'permissions'
     )
     res_branches = await db.execute(select(Branch).order_by(Branch.name))
     res_roles = await db.execute(select(Role).order_by(Role.name))
@@ -998,7 +989,7 @@ async def users_update(
     user: dict = Depends(web_require_permission("can_manage_users")),
 ):
     """Met à jour un utilisateur."""
-    res_user = await db.execute(select(User).where(User.id == user_id))
+    res_user = await db.execute(select(User).options(selectinload(User.permissions)).where(User.id == user_id)) # <--- Utilise 'permissions'
     user_to_update = res_user.scalar_one_or_none()
     if not user_to_update:
         return RedirectResponse(request.url_for('users_page'), status_code=status.HTTP_302_FOUND)
@@ -1018,7 +1009,7 @@ async def users_update(
         final_branch_id = None # Les Admins ne sont pas liés à un magasin
         
     # Empêcher le dernier admin de se désactiver ou de changer son rôle
-    if user_to_update.role.is_admin:
+    if user_to_update.permissions.is_admin: # <--- Utilise 'permissions'
         if user_to_update.id == user['id'] and (not is_active or not role.is_admin):
              # L'admin essaie de se désactiver ou de s'enlever le rôle admin
              return RedirectResponse(request.url_for('users_page'), status_code=status.HTTP_302_FOUND)
@@ -1048,7 +1039,7 @@ async def users_password(
     user: dict = Depends(web_require_permission("can_manage_users")),
 ):
     """Réinitialise le mot de passe d'un utilisateur."""
-    res_user = await db.execute(select(User).options(selectinload(User.role)).where(User.id == user_id))
+    res_user = await db.execute(select(User).options(selectinload(User.permissions)).where(User.id == user_id)) # <--- Utilise 'permissions'
     user_to_update = res_user.scalar_one_or_none()
     
     if not user_to_update or len(password) < 6:
