@@ -1159,10 +1159,13 @@ async def import_data(
                 item = _parse_dates(item, date_fields=['date'], datetime_fields=['created_at'])
                 db.add(Pay(**item))
         
+        # --- FIX: Ajouter 'next_due_on' aux champs de date pour Loan ---
         if "loans" in data:
             for item in data["loans"]:
-                item = _parse_dates(item, date_fields=['start_date'], datetime_fields=['created_at'])
+                # Inclure 'next_due_on' ici
+                item = _parse_dates(item, date_fields=['start_date', 'next_due_on'], datetime_fields=['created_at']) 
                 db.add(Loan(**item))
+        # --- FIN DU FIX ---
         await db.flush() 
         
         if "loan_schedules" in data:
@@ -1174,7 +1177,7 @@ async def import_data(
             for item in data["loan_repayments"]:
                 item = _parse_dates(item, date_fields=['paid_on'], datetime_fields=['created_at'])
                 db.add(LoanRepayment(**item))
-        # --- FIN DU FIX ---
+        # --- FIN DU FIX (implicite, car date parsing appliqué ci-dessus) ---
 
         await db.commit()
         
