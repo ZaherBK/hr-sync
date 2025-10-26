@@ -52,24 +52,24 @@ AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 Base = declarative_base()
 
 
-async def get_session():
-    """Yield an asynchronous session for use with FastAPI dependencies."""
-    async with AsyncSessionLocal() as session:
-        yield session
-
-async def get_db() -> AsyncGenerator[AsyncSession, None]:
+async def get_session() -> AsyncGenerator[AsyncSession, None]:
     """
-    FastAPI dependency to get an async database session.
-    Handles session creation, rollback on error, and closing.
+    (Correct) Yield an asynchronous session for use with FastAPI dependencies.
+    This handles session creation, commit-on-success, rollback-on-error,
+    and closing.
     """
     async with AsyncSessionLocal() as session:
         try:
             yield session
-            # L'endpoint est responsable du commit
+            await session.commit()
         except Exception:
-            # Rollback on any error
             await session.rollback()
             raise
-        finally:
-            # Always close the session
-            await session.close()
+
+
+async def get_db(session: AsyncSession = Depends(get_session)) -> AsyncSession:
+    """
+    FastAPI dependency that yields the database session from get_session.
+    This is now just a simple wrapper.
+    """
+    yield session
