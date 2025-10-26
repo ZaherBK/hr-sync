@@ -110,8 +110,8 @@
               {% endif %}
               {% if user.permissions.is_admin or user.permissions.can_manage_loans %}
               <li class="nav-item">
-                <!-- FIX: Changed icon from data-feather to Font Awesome to match theme -->
-                <a class="nav-link {% if request.url.path == url_for('loans_page') %}active{% endif %}" href="{{ url_for('loans_page') }}">
+                <!-- FIX: Changed icon & added 'active' class logic for loan pages -->
+                <a class="nav-link {% if request.url.path == url_for('loans_page') or 'loan' in request.url.path %}active{% endif %}" href="{{ url_for('loans_page') }}">
                   <i class="fa-solid fa-hand-holding-dollar" style="width: 20px; text-align: center; font-size: 1.1rem;"></i>
                   Gérer les Prêts
                 </a>
@@ -197,3 +197,4 @@
   
 </body>
 </html>
+
