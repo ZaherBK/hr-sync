@@ -5,7 +5,7 @@
 
 <div class="row">
   <div class="col-lg-6">
-    <!-- NOUVEAU: Carte de Sauvegarde et Restauration -->
+    <!-- Carte de Sauvegarde et Restauration -->
     <div class="card form-card">
       <h3><i class="fa-solid fa-database"></i> Sauvegarde et Restauration</h3>
       <p class="hint">
@@ -63,7 +63,11 @@
           <p class="text-danger"><strong>Attention:</strong> L'importation écrasera toutes les données existantes. Cette action est irréversible.</p>
           <div class="form-group">
             <label for="importFile" class="form-label">Fichier JSON de sauvegarde</label>
-            <input class="form-control" type="file" id="importFile" name="file" accept=".json" required>
+            <!-- 
+              IMPORTANT FIX: 
+              Changed name="file" to name="backup_file" to match the server.
+            -->
+            <input class="form-control" type="file" id="importFile" name="backup_file" accept=".json" required>
           </div>
         </div>
         <div class="modal-footer form-actions">
@@ -104,7 +108,7 @@
       <thead>
         <tr>
           <th>Quand</th>
-          <th>Qui</th> <!-- Changé de "Action" -->
+          <th>Qui</th>
           <th>Action</th>
           <th>Entité</th>
           <th>Détails</th>
@@ -114,7 +118,6 @@
         {% for log in logs %}
         <tr>
           <td class="timestamp">{{ log.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
-          <!-- FIX: Correction de l'erreur 'log.actor' -->
           <td class="details">{{ log.actor_full_name or 'Système' }}</td>
           <td>
             {% if log.action == 'create' %}
