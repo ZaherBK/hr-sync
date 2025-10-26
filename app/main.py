@@ -7,16 +7,17 @@ from decimal import Decimal
 from typing import Annotated, List, Optional
 import json
 
-from fastapi import Depends, FastAPI, Form, HTTPException, Request, status, APIRouter
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import Depends, FastAPI, Form, HTTPException, Request, status, APIRouter, UploadFile, File
+from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 from sqlalchemy import select, delete, func, case, extract, or_
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload  # <--- IMPORT IMPORTANT
+from sqlalchemy.orm import selectinload
 from sqlalchemy.future import select
 from . import models, schemas
+import io # Importé pour l'export
 
 # --- CORRIGÉ : Import de get_db depuis .deps ---
 from .db import engine, Base, AsyncSessionLocal
@@ -25,7 +26,7 @@ from .auth import authenticate_user, create_access_token, hash_password, ACCESS_
 # Importer TOUS les modèles nécessaires
 from .models import (
     Attendance, AttendanceType, Branch, Deposit, Employee, Leave, User, Pay, PayType, AuditLog, LeaveType,
-    Role
+    Role, Loan, LoanSchedule, LoanRepayment
 )
 from .schemas import RoleCreate, RoleUpdate
 
@@ -35,8 +36,9 @@ from .routers import users, branches, employees as employees_api, attendance as 
 from .deps import get_db, web_require_permission, get_current_session_user
 # --- LOANS ---
 from app.api import loans as loans_api
-from app.models import Employee, Loan, LoanSchedule, LoanRepayment # <--- Imports Loan
-from app.schemas import LoanCreate, RepaymentCreate # <--- Imports Schema
+# Mettez à jour les imports de models et schemas
+from app.models import Employee, Loan, LoanSchedule, LoanRepayment
+from app.schemas import LoanCreate, RepaymentCreate
 # --- FIN MODIFIÉ ---
 
 
@@ -77,18 +79,16 @@ app.add_middleware(
 # 1. Create a NEW dependency to get the FULL database user
 async def get_current_db_user(
     db: AsyncSession = Depends(get_db), 
-    user_data: dict = Depends(get_current_session_user) # <--- FIX 1
+    user_data: dict = Depends(get_current_session_user)
 ) -> models.User | None:
     
     if not user_data:
         return None
         
-    # Get the email from the session dict
-    user_email = user_data.get("email") # <--- FIX 2
+    user_email = user_data.get("email")
     if not user_email:
         return None
 
-    # This is the query that fetches the User AND its related Role
     result = await db.execute(
         select(models.User).options(selectinload(models.User.permissions)).where(models.User.email == user_email)
     )
@@ -101,61 +101,35 @@ async def on_startup() -> None:
     """Créer les tables de la base de données et ajouter les rôles/données initiaux."""
     print("Événement de démarrage...")
     async with engine.begin() as conn:
-        print("!!! ATTENTION : Suppression de toutes les tables... !!!")
-        # await conn.run_sync(Base.metadata.drop_all)      # <--- Commentez ou supprimez ceci après le premier test
         print("Création de toutes les tables (si elles n'existent pas)...")
         await conn.run_sync(Base.metadata.create_all)
         print("Tables OK.")
 
-    # --- Logique de Seeding (Fortement modifiée) ---
     try:
         async with AsyncSessionLocal() as session:
-            # --- 1. Vérifier si le rôle Admin existe ---
             res_admin_role = await session.execute(select(Role).where(Role.name == "Admin"))
             admin_role = res_admin_role.scalar_one_or_none()
             
             if not admin_role:
                 print("Base de données vide, ajout des rôles et utilisateurs initiaux (seed)...")
                 
-                # --- 2. Créer les Rôles par défaut ---
                 admin_role = Role(
-                    name="Admin",
-                    is_admin=True, # God Mode
-                    can_manage_users=True,
-                    can_manage_roles=True,
-                    can_manage_branches=True,
-                    can_view_settings=True,
-                    can_clear_logs=True,
-                    can_manage_employees=True,
-                    can_view_reports=True,
-                    can_manage_pay=True,
-                    can_manage_absences=True,
-                    can_manage_leaves=True,
-                    can_manage_deposits=True,
+                    name="Admin", is_admin=True, can_manage_users=True, can_manage_roles=True,
+                    can_manage_branches=True, can_view_settings=True, can_clear_logs=True,
+                    can_manage_employees=True, can_view_reports=True, can_manage_pay=True,
+                    can_manage_absences=True, can_manage_leaves=True, can_manage_deposits=True,
                     can_manage_loans=True
                 )
                 manager_role = Role(
-                    name="Manager",
-                    is_admin=False,
-                    can_manage_users=False, 
-                    can_manage_roles=False,
-                    can_manage_branches=False,
-                    can_view_settings=False,
-                    can_clear_logs=False,
-                    can_manage_employees=True,
-                    can_view_reports=False,
-                    can_manage_pay=True,
-                    can_manage_absences=True,
-                    can_manage_leaves=True,
-                    can_manage_deposits=True,
+                    name="Manager", is_admin=False, can_manage_users=False, can_manage_roles=False,
+                    can_manage_branches=False, can_view_settings=False, can_clear_logs=False,
+                    can_manage_employees=True, can_view_reports=False, can_manage_pay=True,
+                    can_manage_absences=True, can_manage_leaves=True, can_manage_deposits=True,
                     can_manage_loans=True
                 )
                 session.add_all([admin_role, manager_role])
-                await session.flush() # Pour obtenir les IDs
+                await session.flush()
 
-                #
-                # --- 3. VÉRIFIER ET CRÉER LES MAGASINS (C'EST LA CORRECTION) ---
-                #
                 res_branch = await session.execute(select(Branch).where(Branch.name == "Magasin Ariana"))
                 branch_ariana = res_branch.scalar_one_or_none()
                 
@@ -164,46 +138,28 @@ async def on_startup() -> None:
                     branch_ariana = Branch(name="Magasin Ariana", city="Ariana")
                     branch_nabeul = Branch(name="Magasin Nabeul", city="Nabeul")
                     session.add_all([branch_ariana, branch_nabeul])
-                    await session.flush() # Pour obtenir les IDs
+                    await session.flush()
                 else:
                     print("Magasins déjà présents, récupération...")
-                    # Récupérer l'autre magasin pour être sûr
                     res_nabeul = await session.execute(select(Branch).where(Branch.name == "Magasin Nabeul"))
                     branch_nabeul = res_nabeul.scalar_one()
-                #
-                # --- FIN DE LA CORRECTION ---
-                #
 
-                # --- 4. Créer les Utilisateurs initiaux ---
-                # Vérifier si l'admin existe
                 res_admin_user = await session.execute(select(User).where(User.email == "zaher@local"))
                 
                 if res_admin_user.scalar_one_or_none() is None:
                     print("Ajout des utilisateurs initiaux...")
                     users_to_create = [
                         User(
-                            email="zaher@local",
-                            full_name="Zaher (Admin)",
-                            role_id=admin_role.id, # Assigner l'ID du rôle
-                            hashed_password=hash_password("zah1405"),
-                            is_active=True,
-                            branch_id=None
+                            email="zaher@local", full_name="Zaher (Admin)", role_id=admin_role.id,
+                            hashed_password=hash_password("zah1405"), is_active=True, branch_id=None
                         ),
                         User(
-                            email="ariana@local",
-                            full_name="Ariana (Manager)",
-                            role_id=manager_role.id, # Assigner l'ID du rôle
-                            hashed_password=hash_password("ar123"),
-                            is_active=True,
-                            branch_id=branch_ariana.id
+                            email="ariana@local", full_name="Ariana (Manager)", role_id=manager_role.id,
+                            hashed_password=hash_password("ar123"), is_active=True, branch_id=branch_ariana.id
                         ),
                         User(
-                            email="nabeul@local",
-                            full_name="Nabeul (Manager)",
-                            role_id=manager_role.id, # Assigner l'ID du rôle
-                            hashed_password=hash_password("na123"),
-                            is_active=True,
-                            branch_id=branch_nabeul.id
+                            email="nabeul@local", full_name="Nabeul (Manager)", role_id=manager_role.id,
+                            hashed_password=hash_password("na123"), is_active=True, branch_id=branch_nabeul.id
                         ),
                     ]
                     session.add_all(users_to_create)
@@ -216,41 +172,46 @@ async def on_startup() -> None:
                 print("Données initiales déjà présentes. Seeding ignoré.")
     except Exception as e:
         print(f"Erreur pendant le seeding initial : {e}")
-        await session.rollback() # Annuler les changements en cas d'erreur
+        await session.rollback()
 
 
 # --- 4. Fonctions d'aide (Helper Functions) ---
 
-# --- NOUVELLE FONCTION D'AIDE ---
 def _serialize_permissions(role: Role | None) -> dict:
     """Convertit un objet Role en un dictionnaire de permissions pour la session."""
     if not role:
-        return {} # Pas de permissions si pas de rôle
+        return {}
     return role.to_dict()
-# --- FIN NOUVELLE FONCTION ---
+
+# --- NOUVEAU : Helper pour l'export JSON ---
+class CustomJSONEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, Decimal):
+            return float(obj)
+        if isinstance(obj, (dt_date, datetime)):
+            return obj.isoformat()
+        if isinstance(obj, Base): # Gérer les objets SQLAlchemy
+             return {c.name: getattr(obj, c.name) for c in obj.__table__.columns}
+        if isinstance(obj, enum.Enum):
+            return obj.value
+        return super().default(obj)
+# --- FIN NOUVEAU ---
 
 
 # --- 5. Routes des Pages Web (GET et POST) ---
 
-# --- CORRIGÉ : Utilise @app.get au lieu de @router.get ---
 @app.get("/", response_class=HTMLResponse, name="home")
 async def home(
     request: Request,
-    # Use the NEW dependency here instead of the old one
     current_user: models.User = Depends(get_current_db_user) 
 ):
     if not current_user:
-        # If no user, redirect to login
         return RedirectResponse("/login", status_code=status.HTTP_302_FOUND)
 
-    # 'current_user' is now the FULL SQLAlchemy object, not a dict.
-    # 'current_user.permissions' will exist.
     context = {
         "request": request,
-        "user": current_user  # Pass the full object to the template
+        "user": current_user
     }
-    
-    # This line (from your error log) will now work
     return templates.TemplateResponse("dashboard.html", context)
 
 
@@ -261,7 +222,6 @@ async def login_page(request: Request, db: AsyncSession = Depends(get_db)):
     return templates.TemplateResponse("login.html", {"request": request, "app_name": APP_NAME, "users": users})
 
 
-
 @app.post("/login", name="login_action")
 async def login_action(
     request: Request, 
@@ -269,11 +229,7 @@ async def login_action(
     password: str = Form(...),
     db: AsyncSession = Depends(get_db) 
 ):
-    """Traite la soumission du formulaire de connexion."""
-    
-    # --- MODIFIÉ : authenticate_user charge maintenant le rôle (défini dans auth.py) ---
     user = await authenticate_user(db, username, password)
-    # --- FIN MODIFIÉ ---
     
     if not user:
         context = {
@@ -283,51 +239,38 @@ async def login_action(
         }
         return templates.TemplateResponse("login.html", context, status_code=status.HTTP_401_UNAUTHORIZED)
 
-    # --- MODIFIÉ : Création de la session avec permissions ---
-    # NOTE: Assurez-vous que votre modèle User a 'permissions' comme nom de relation
-    permissions_dict = _serialize_permissions(user.permissions) # <--- CHANGÉ de user.role à user.permissions
+    permissions_dict = _serialize_permissions(user.permissions)
 
     request.session["user"] = {
         "email": user.email,
         "id": user.id,
         "full_name": user.full_name,
         "branch_id": user.branch_id,
-        "permissions": permissions_dict # Stocke toutes les permissions
+        "permissions": permissions_dict
     }
-    # --- FIN MODIFIÉ ---
     
     return RedirectResponse(request.url_for('home'), status_code=status.HTTP_302_FOUND)
 
 
 @app.get("/logout", name="logout")
 async def logout(request: Request):
-    """Déconnecte l'utilisateur en vidant la session."""
     request.session.clear()
     return RedirectResponse(request.url_for('login_page'), status_code=status.HTTP_302_FOUND)
 
-
-# --- 
-# --- Routes principales (Employés, Absences, etc.) Mises à Jour
-# ---
 
 # --- Employés ---
 @app.get("/employees", response_class=HTMLResponse, name="employees_page")
 async def employees_page(
     request: Request, 
     db: AsyncSession = Depends(get_db),
-    # --- MODIFIÉ : Nouvelle sécurité ---
     user: dict = Depends(web_require_permission("can_manage_employees"))
 ):
-    """Affiche la page de gestion des employés."""
-    # --- FIN MODIFIÉ ---
-
     branches_query = select(Branch)
     employees_query = select(Employee).where(Employee.active == True).order_by(Employee.first_name)
     
     manager_branch_id = None
     permissions = user.get("permissions", {})
 
-    # Si ce n'est pas un admin, filtre par son magasin
     if not permissions.get("is_admin"):
         manager_branch_id = user.get("branch_id")
         branches_query = branches_query.where(Branch.id == manager_branch_id)
@@ -337,9 +280,7 @@ async def employees_page(
     res_employees = await db.execute(employees_query)
 
     context = {
-        "request": request,
-        "user": user,
-        "app_name": APP_NAME,
+        "request": request, "user": user, "app_name": APP_NAME,
         "employees": res_employees.scalars().all(),
         "branches": res_branches.scalars().all(),
         "manager_branch_id": manager_branch_id
@@ -355,22 +296,16 @@ async def employees_create(
     position: Annotated[str, Form()],
     branch_id: Annotated[int, Form()],
     db: AsyncSession = Depends(get_db),
-    # --- MODIFIÉ : Nouvelle sécurité ---
     user: dict = Depends(web_require_permission("can_manage_employees")),
-    # --- FIN MODIFIÉ ---
     cin: Annotated[str, Form()] = None,
     salary: Annotated[Decimal, Form()] = None
 ):
-    """Crée un nouvel employé."""
-    
     permissions = user.get("permissions", {})
     
-    # Sécurité : Seul un admin (ou permission équivalente) peut assigner à un autre magasin
     if not permissions.get("is_admin") and user.get("branch_id") != branch_id:
          return RedirectResponse(request.url_for('employees_page'), status_code=status.HTTP_302_FOUND)
     
-    # Sécurité : Seul un admin peut définir un salaire (ou nouvelle permission)
-    if not permissions.get("is_admin"): # A l'avenir: 'can_set_salary'
+    if not permissions.get("is_admin"):
         salary = None
 
     if cin:
@@ -379,13 +314,8 @@ async def employees_create(
             return RedirectResponse(request.url_for('employees_page'), status_code=status.HTTP_302_FOUND)
 
     new_employee = Employee(
-        first_name=first_name,
-        last_name=last_name,
-        cin=cin or None,
-        position=position,
-        branch_id=branch_id,
-        salary=salary,
-        active=True
+        first_name=first_name, last_name=last_name, cin=cin or None,
+        position=position, branch_id=branch_id, salary=salary, active=True
     )
     db.add(new_employee)
     await db.commit()
@@ -404,12 +334,8 @@ async def employees_create(
 async def attendance_page(
     request: Request, 
     db: AsyncSession = Depends(get_db),
-    # --- MODIFIÉ : Nouvelle sécurité ---
     user: dict = Depends(web_require_permission("can_manage_absences"))
 ):
-    """Affiche la page des absences."""
-    # --- FIN MODIFIÉ ---
-
     employees_query = select(Employee).where(Employee.active == True).order_by(Employee.first_name)
     attendance_query = select(Attendance).order_by(Attendance.date.desc(), Attendance.created_at.desc())
 
@@ -423,9 +349,7 @@ async def attendance_page(
     res_attendance = await db.execute(attendance_query.limit(100))
 
     context = {
-        "request": request,
-        "user": user,
-        "app_name": APP_NAME,
+        "request": request, "user": user, "app_name": APP_NAME,
         "employees": res_employees.scalars().all(),
         "attendance": res_attendance.scalars().all(),
         "today_date": dt_date.today().isoformat()
@@ -439,12 +363,9 @@ async def attendance_create(
     employee_id: Annotated[int, Form()],
     date: Annotated[dt_date, Form()],
     db: AsyncSession = Depends(get_db),
-    # --- MODIFIÉ : Nouvelle sécurité ---
     user: dict = Depends(web_require_permission("can_manage_absences")),
-    # --- FIN MODIFIÉ ---
     note: Annotated[str, Form()] = None
 ):
-    """Enregistre une nouvelle absence."""
     res_emp = await db.execute(select(Employee).where(Employee.id == employee_id))
     employee = res_emp.scalar_one_or_none()
     if not employee:
@@ -455,11 +376,8 @@ async def attendance_create(
         return RedirectResponse(request.url_for('attendance_page'), status_code=status.HTTP_302_FOUND)
     
     new_attendance = Attendance(
-        employee_id=employee_id,
-        date=date,
-        atype=AttendanceType.absent,
-        note=note or None,
-        created_by=user['id']
+        employee_id=employee_id, date=date, atype=AttendanceType.absent,
+        note=note or None, created_by=user['id']
     )
     db.add(new_attendance)
     await db.commit()
@@ -478,12 +396,8 @@ async def attendance_create(
 async def deposits_page(
     request: Request, 
     db: AsyncSession = Depends(get_db),
-    # --- MODIFIÉ : Nouvelle sécurité ---
     user: dict = Depends(web_require_permission("can_manage_deposits"))
 ):
-    """Affiche la page des avances."""
-    # --- FIN MODIFIÉ ---
-
     employees_query = select(Employee).where(Employee.active == True).order_by(Employee.first_name)
     deposits_query = select(Deposit).order_by(Deposit.date.desc(), Deposit.created_at.desc())
 
@@ -497,9 +411,7 @@ async def deposits_page(
     res_deposits = await db.execute(deposits_query.limit(100))
 
     context = {
-        "request": request,
-        "user": user,
-        "app_name": APP_NAME,
+        "request": request, "user": user, "app_name": APP_NAME,
         "employees": res_employees.scalars().all(),
         "deposits": res_deposits.scalars().all(),
         "today_date": dt_date.today().isoformat()
@@ -514,12 +426,9 @@ async def deposits_create(
     amount: Annotated[Decimal, Form()],
     date: Annotated[dt_date, Form()],
     db: AsyncSession = Depends(get_db),
-    # --- MODIFIÉ : Nouvelle sécurité ---
     user: dict = Depends(web_require_permission("can_manage_deposits")),
-    # --- FIN MODIFIÉ ---
     note: Annotated[str, Form()] = None
 ):
-    """Enregistre une nouvelle avance."""
     res_emp = await db.execute(select(Employee).where(Employee.id == employee_id))
     employee = res_emp.scalar_one_or_none()
     if not employee or amount <= 0:
@@ -530,11 +439,8 @@ async def deposits_create(
         return RedirectResponse(request.url_for('deposits_page'), status_code=status.HTTP_302_FOUND)
     
     new_deposit = Deposit(
-        employee_id=employee_id,
-        amount=amount,
-        date=date,
-        note=note or None,
-        created_by=user['id']
+        employee_id=employee_id, amount=amount, date=date,
+        note=note or None, created_by=user['id']
     )
     db.add(new_deposit)
     await db.commit()
@@ -553,12 +459,8 @@ async def deposits_create(
 async def leaves_page(
     request: Request, 
     db: AsyncSession = Depends(get_db),
-    # --- MODIFIÉ : Nouvelle sécurité ---
     user: dict = Depends(web_require_permission("can_manage_leaves"))
 ):
-    """Affiche la page des congés."""
-    # --- FIN MODIFIÉ ---
-
     employees_query = select(Employee).where(Employee.active == True).order_by(Employee.first_name)
     leaves_query = select(Leave).order_by(Leave.start_date.desc())
 
@@ -572,9 +474,7 @@ async def leaves_page(
     res_leaves = await db.execute(leaves_query.limit(100))
 
     context = {
-        "request": request,
-        "user": user,
-        "app_name": APP_NAME,
+        "request": request, "user": user, "app_name": APP_NAME,
         "employees": res_employees.scalars().all(),
         "leaves": res_leaves.scalars().all(),
     }
@@ -589,12 +489,8 @@ async def leaves_create(
     end_date: Annotated[dt_date, Form()],
     ltype: Annotated[LeaveType, Form()],
     db: AsyncSession = Depends(get_db),
-    # --- MODIFIÉ : Nouvelle sécurité ---
     user: dict = Depends(web_require_permission("can_manage_leaves"))
 ):
-    """Crée une demande de congé."""
-    # --- FIN MODIFIÉ ---
-
     if start_date > end_date:
         return RedirectResponse(request.url_for('leaves_page'), status_code=status.HTTP_302_FOUND)
 
@@ -608,12 +504,8 @@ async def leaves_create(
         return RedirectResponse(request.url_for('leaves_page'), status_code=status.HTTP_302_FOUND)
 
     new_leave = Leave(
-        employee_id=employee_id,
-        start_date=start_date,
-        end_date=end_date,
-        ltype=ltype,
-        approved=False, 
-        created_by=user['id']
+        employee_id=employee_id, start_date=start_date, end_date=end_date,
+        ltype=ltype, approved=False, created_by=user['id']
     )
     db.add(new_leave)
     await db.commit()
@@ -632,12 +524,8 @@ async def leaves_approve(
     request: Request,
     leave_id: int,
     db: AsyncSession = Depends(get_db),
-    # --- MODIFIÉ : Nouvelle sécurité (on pourrait créer 'can_approve_leaves') ---
     user: dict = Depends(web_require_permission("can_manage_leaves"))
 ):
-    """Approuve un congé."""
-    # --- FIN MODIFIÉ ---
-
     res_leave = await db.execute(
         select(Leave).options(selectinload(Leave.employee)).where(Leave.id == leave_id)
     )
@@ -666,13 +554,9 @@ async def leaves_approve(
 async def employee_report_index(
     request: Request, 
     db: AsyncSession = Depends(get_db),
-    # --- MODIFIÉ : Nouvelle sécurité ---
     user: dict = Depends(web_require_permission("can_view_reports")),
-    # --- FIN MODIFIÉ ---
     employee_id: int | None = None
 ):
-    """Affiche la page de rapport d'un employé."""
-
     res_employees = await db.execute(select(Employee).where(Employee.active == True).order_by(Employee.first_name))
     employees_list = res_employees.scalars().all()
 
@@ -681,6 +565,7 @@ async def employee_report_index(
     deposits = []
     absences = []
     leaves = []
+    loans = [] # Ajout des prêts au rapport
 
     if employee_id:
         res_selected = await db.execute(select(Employee).where(Employee.id == employee_id))
@@ -695,17 +580,14 @@ async def employee_report_index(
             absences = res_abs.scalars().all()
             res_lea = await db.execute(select(Leave).where(Leave.employee_id == employee_id).order_by(Leave.start_date.desc()))
             leaves = res_lea.scalars().all()
+            res_loans = await db.execute(select(Loan).where(Loan.employee_id == employee_id).order_by(Loan.start_date.desc()))
+            loans = res_loans.scalars().all()
 
     context = {
-        "request": request,
-        "user": user,
-        "app_name": APP_NAME,
-        "employees": employees_list,
-        "selected_employee": selected_employee,
-        "pay_history": pay_history,
-        "deposits": deposits,
-        "absences": absences,
-        "leaves": leaves
+        "request": request, "user": user, "app_name": APP_NAME,
+        "employees": employees_list, "selected_employee": selected_employee,
+        "pay_history": pay_history, "deposits": deposits,
+        "absences": absences, "leaves": leaves, "loans": loans
     }
     return templates.TemplateResponse("employee_report.html", context)
 
@@ -715,12 +597,8 @@ async def employee_report_index(
 async def pay_employee_page(
     request: Request, 
     db: AsyncSession = Depends(get_db),
-    # --- MODIFIÉ : Nouvelle sécurité ---
     user: dict = Depends(web_require_permission("can_manage_pay"))
 ):
-    """Affiche la page pour enregistrer un paiement."""
-    # --- FIN MODIFIÉ ---
-
     employees_query = select(Employee).where(Employee.active == True).order_by(Employee.first_name)
     
     permissions = user.get("permissions", {})
@@ -730,9 +608,7 @@ async def pay_employee_page(
     res_employees = await db.execute(employees_query)
     
     context = {
-        "request": request,
-        "user": user,
-        "app_name": APP_NAME,
+        "request": request, "user": user, "app_name": APP_NAME,
         "employees": res_employees.scalars().all(),
         "today_date": dt_date.today().isoformat()
     }
@@ -747,12 +623,9 @@ async def pay_employee_action(
     date: Annotated[dt_date, Form()],
     pay_type: Annotated[PayType, Form()],
     db: AsyncSession = Depends(get_db),
-    # --- MODIFIÉ : Nouvelle sécurité ---
     user: dict = Depends(web_require_permission("can_manage_pay")),
-    # --- FIN MODIFIÉ ---
     note: Annotated[str, Form()] = None
 ):
-    """Enregistre un nouveau paiement."""
     res_emp = await db.execute(select(Employee).where(Employee.id == employee_id))
     employee = res_emp.scalar_one_or_none()
     
@@ -764,12 +637,8 @@ async def pay_employee_action(
         return RedirectResponse(request.url_for('pay_employee_page'), status_code=status.HTTP_302_FOUND)
 
     new_pay = Pay(
-        employee_id=employee_id,
-        amount=amount,
-        date=date,
-        pay_type=pay_type,
-        note=note or None,
-        created_by=user['id']
+        employee_id=employee_id, amount=amount, date=date,
+        pay_type=pay_type, note=note or None, created_by=user['id']
     )
     db.add(new_pay)
     await db.commit()
@@ -786,27 +655,19 @@ async def pay_employee_action(
     )
 
 
-# --- 
-# --- ❗️❗️ DÉBUT DES ROUTES DE GESTION (Rôles & Utilisateurs) ❗️❗️
-# ---
-
-# --- Gestion des Rôles (NOUVEAU) ---
+# --- Gestion des Rôles ---
 @app.get("/roles", response_class=HTMLResponse, name="roles_page")
 async def roles_page(
     request: Request,
     db: AsyncSession = Depends(get_db),
     user: dict = Depends(web_require_permission("can_manage_roles"))
 ):
-    """Affiche la page de gestion des Rôles (Admin seulement)."""
-    
     res_roles = await db.execute(
         select(Role).options(selectinload(Role.users)).order_by(Role.name)
     )
     
     context = {
-        "request": request,
-        "user": user,
-        "app_name": APP_NAME,
+        "request": request, "user": user, "app_name": APP_NAME,
         "roles": res_roles.scalars().unique().all()
     }
     return templates.TemplateResponse("roles.html", context)
@@ -819,14 +680,11 @@ async def roles_create(
     db: AsyncSession = Depends(get_db),
     user: dict = Depends(web_require_permission("can_manage_roles"))
 ):
-    """Crée un nouveau rôle."""
-    
     res_exist = await db.execute(select(Role).where(Role.name == name))
     if res_exist.scalar_one_or_none():
-        # Gérer erreur
         return RedirectResponse(request.url_for('roles_page'), status_code=status.HTTP_302_FOUND)
         
-    new_role = Role(name=name) # Crée avec les permissions par défaut (False)
+    new_role = Role(name=name)
     db.add(new_role)
     
     await db.commit()
@@ -837,7 +695,6 @@ async def roles_create(
         None, f"Rôle créé: {new_role.name}"
     )
     
-    # Redirige vers la page des rôles pour qu'ils puissent modifier le nouveau rôle
     return RedirectResponse(request.url_for('roles_page'), status_code=status.HTTP_302_FOUND)
 
 
@@ -848,18 +705,14 @@ async def roles_update(
     db: AsyncSession = Depends(get_db),
     user: dict = Depends(web_require_permission("can_manage_roles"))
 ):
-    """Met à jour les permissions d'un rôle."""
-    
     res_role = await db.execute(select(Role).where(Role.id == role_id))
     role_to_update = res_role.scalar_one_or_none()
     
-    if not role_to_update or role_to_update.is_admin: # Ne peut pas modifier le rôle Admin
+    if not role_to_update or role_to_update.is_admin:
         return RedirectResponse(request.url_for('roles_page'), status_code=status.HTTP_302_FOUND)
         
-    # Récupérer les données du formulaire
     form_data = await request.form()
     
-    # Mettre à jour chaque permission basée sur la présence de la checkbox
     role_to_update.can_manage_users = "can_manage_users" in form_data
     role_to_update.can_manage_roles = "can_manage_roles" in form_data
     role_to_update.can_manage_branches = "can_manage_branches" in form_data
@@ -890,14 +743,11 @@ async def roles_delete(
     db: AsyncSession = Depends(get_db),
     user: dict = Depends(web_require_permission("can_manage_roles"))
 ):
-    """Supprime un rôle (si aucun utilisateur ne l'utilise)."""
-    
     res_role = await db.execute(
         select(Role).options(selectinload(Role.users)).where(Role.id == role_id)
     )
     role_to_delete = res_role.scalar_one_or_none()
     
-    # Sécurité : Ne peut pas supprimer le rôle Admin ou un rôle utilisé
     if not role_to_delete or role_to_delete.is_admin or len(role_to_delete.users) > 0:
         return RedirectResponse(request.url_for('roles_page'), status_code=status.HTTP_302_FOUND)
         
@@ -913,28 +763,24 @@ async def roles_delete(
     return RedirectResponse(request.url_for('roles_page'), status_code=status.HTTP_302_FOUND)
 
 
-# --- Gestion des Utilisateurs (MODIFIÉ) ---
+# --- Gestion des Utilisateurs ---
 @app.get("/users", response_class=HTMLResponse, name="users_page")
 async def users_page(
     request: Request, 
     db: AsyncSession = Depends(get_db),
     user: dict = Depends(web_require_permission("can_manage_users"))
 ):
-    """Affiche la page de gestion des utilisateurs (Admin seulement)."""
-    
     res_users = await db.execute(
-        select(User).options(selectinload(User.branch), selectinload(User.permissions)).order_by(User.full_name) # <--- Utilise 'permissions'
+        select(User).options(selectinload(User.branch), selectinload(User.permissions)).order_by(User.full_name)
     )
     res_branches = await db.execute(select(Branch).order_by(Branch.name))
     res_roles = await db.execute(select(Role).order_by(Role.name))
 
     context = {
-        "request": request,
-        "user": user,
-        "app_name": APP_NAME,
+        "request": request, "user": user, "app_name": APP_NAME,
         "users": res_users.scalars().unique().all(),
         "branches": res_branches.scalars().all(),
-        "roles": res_roles.scalars().all(), # Passer les rôles au template
+        "roles": res_roles.scalars().all(),
     }
     return templates.TemplateResponse("users.html", context)
 
@@ -945,17 +791,15 @@ async def users_create(
     full_name: Annotated[str, Form()],
     email: Annotated[str, Form()],
     password: Annotated[str, Form()],
-    role_id: Annotated[int, Form()], # MODIFIÉ
+    role_id: Annotated[int, Form()],
     db: AsyncSession = Depends(get_db),
     user: dict = Depends(web_require_permission("can_manage_users")),
     branch_id: Annotated[int, Form()] = None,
 ):
-    """Crée un nouvel utilisateur."""
     res_exist = await db.execute(select(User).where(User.email == email))
     if res_exist.scalar_one_or_none():
         return RedirectResponse(request.url_for('users_page'), status_code=status.HTTP_302_FOUND)
         
-    # Logique de validation du rôle (un admin ne devrait pas avoir de magasin)
     res_role = await db.execute(select(Role).where(Role.id == role_id))
     role = res_role.scalar_one_or_none()
     if not role:
@@ -963,15 +807,12 @@ async def users_create(
         
     final_branch_id = branch_id
     if role.is_admin:
-        final_branch_id = None # Les Admins ne sont pas liés à un magasin
+        final_branch_id = None
 
     new_user = User(
-        full_name=full_name,
-        email=email,
+        full_name=full_name, email=email,
         hashed_password=hash_password(password),
-        role_id=role_id,
-        branch_id=final_branch_id,
-        is_active=True
+        role_id=role_id, branch_id=final_branch_id, is_active=True
     )
     db.add(new_user)
     await db.commit()
@@ -991,14 +832,13 @@ async def users_update(
     user_id: int,
     full_name: Annotated[str, Form()],
     email: Annotated[str, Form()],
-    role_id: Annotated[int, Form()], # MODIFIÉ
+    role_id: Annotated[int, Form()],
     is_active: Annotated[bool, Form()] = False,
     branch_id: Annotated[int, Form()] = None,
     db: AsyncSession = Depends(get_db),
     user: dict = Depends(web_require_permission("can_manage_users")),
 ):
-    """Met à jour un utilisateur."""
-    res_user = await db.execute(select(User).options(selectinload(User.permissions)).where(User.id == user_id)) # <--- Utilise 'permissions'
+    res_user = await db.execute(select(User).options(selectinload(User.permissions)).where(User.id == user_id))
     user_to_update = res_user.scalar_one_or_none()
     if not user_to_update:
         return RedirectResponse(request.url_for('users_page'), status_code=status.HTTP_302_FOUND)
@@ -1015,12 +855,10 @@ async def users_update(
         
     final_branch_id = branch_id
     if role.is_admin:
-        final_branch_id = None # Les Admins ne sont pas liés à un magasin
+        final_branch_id = None
         
-    # Empêcher le dernier admin de se désactiver ou de changer son rôle
-    if user_to_update.permissions.is_admin: # <--- Utilise 'permissions'
+    if user_to_update.permissions.is_admin:
         if user_to_update.id == user['id'] and (not is_active or not role.is_admin):
-             # L'admin essaie de se désactiver ou de s'enlever le rôle admin
              return RedirectResponse(request.url_for('users_page'), status_code=status.HTTP_302_FOUND)
 
     user_to_update.full_name = full_name
@@ -1047,8 +885,7 @@ async def users_password(
     db: AsyncSession = Depends(get_db),
     user: dict = Depends(web_require_permission("can_manage_users")),
 ):
-    """Réinitialise le mot de passe d'un utilisateur."""
-    res_user = await db.execute(select(User).options(selectinload(User.permissions)).where(User.id == user_id)) # <--- Utilise 'permissions'
+    res_user = await db.execute(select(User).options(selectinload(User.permissions)).where(User.id == user_id))
     user_to_update = res_user.scalar_one_or_none()
     
     if not user_to_update or len(password) < 6:
@@ -1072,8 +909,7 @@ async def users_delete(
     db: AsyncSession = Depends(get_db),
     user: dict = Depends(web_require_permission("can_manage_users")),
 ):
-    """Supprime un utilisateur."""
-    if user['id'] == user_id: # Ne peut pas se supprimer soi-même
+    if user['id'] == user_id:
         return RedirectResponse(request.url_for('users_page'), status_code=status.HTTP_302_FOUND)
 
     res_user = await db.execute(select(User).where(User.id == user_id))
@@ -1103,8 +939,6 @@ async def settings_page(
     db: AsyncSession = Depends(get_db),
     user: dict = Depends(web_require_permission("can_view_settings"))
 ):
-    """Affiche la page des paramètres."""
-    
     permissions = user.get("permissions", {})
     filtered_logs = await latest(
         db,
@@ -1114,9 +948,7 @@ async def settings_page(
     )
 
     context = {
-        "request": request,
-        "user": user,
-        "app_name": APP_NAME,
+        "request": request, "user": user, "app_name": APP_NAME,
         "logs": filtered_logs
     }
     return templates.TemplateResponse("settings.html", context)
@@ -1129,7 +961,6 @@ async def clear_transaction_logs(
     db: AsyncSession = Depends(get_db),
     user: dict = Depends(web_require_permission("can_clear_logs"))
 ):
-    """Supprime toutes les données transactionnelles."""
     print(f"ACTION ADMIN (user {user['id']}): Nettoyage des journaux...")
 
     try:
@@ -1155,22 +986,154 @@ async def clear_transaction_logs(
     return RedirectResponse(request.url_for('settings_page'), status_code=status.HTTP_302_FOUND)
 
 #
+# --- NOUVEAU : FONCTIONNALITÉS DE BACKUP / RESTORE ---
 #
-# --- TOUT LE SYSTÈME DE PRÊTS (WEB) EST CORRIGÉ CI-DESSOUS ---
+@app.get("/settings/export", name="export_data")
+async def export_data(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(web_require_permission("is_admin")) # Admin seulement
+):
+    """Exporte toutes les données de la base de données en JSON."""
+    
+    data_to_export = {}
+    
+    try:
+        # Exporter chaque table
+        data_to_export["branches"] = (await db.execute(select(Branch))).scalars().all()
+        # Ne pas exporter les mots de passe hashés
+        users_raw = (await db.execute(select(User))).scalars().all()
+        data_to_export["users"] = [{col.name: getattr(u, col.name) for col in User.__table__.columns if col.name != 'hashed_password'} for u in users_raw]
+        
+        data_to_export["employees"] = (await db.execute(select(Employee))).scalars().all()
+        data_to_export["attendance"] = (await db.execute(select(Attendance))).scalars().all()
+        data_to_export["leaves"] = (await db.execute(select(Leave))).scalars().all()
+        data_to_export["deposits"] = (await db.execute(select(Deposit))).scalars().all()
+        data_to_export["pay_history"] = (await db.execute(select(Pay))).scalars().all()
+        data_to_export["loans"] = (await db.execute(select(Loan))).scalars().all()
+        data_to_export["loan_schedules"] = (await db.execute(select(LoanSchedule))).scalars().all()
+        data_to_export["loan_repayments"] = (await db.execute(select(LoanRepayment))).scalars().all()
+        
+        # Les Rôles sont gérés par le seed, mais exportons-les pour référence
+        data_to_export["roles"] = (await db.execute(select(Role))).scalars().all()
+
+        
+    except Exception as e:
+        print(f"Erreur pendant l'export: {e}")
+        return RedirectResponse(request.url_for('settings_page'), status_code=status.HTTP_302_FOUND)
+
+    # Créer un fichier JSON en mémoire
+    json_data = json.dumps(data_to_export, cls=CustomJSONEncoder, indent=2)
+    file_stream = io.BytesIO(json_data.encode("utf-8"))
+    
+    filename = f"backup_bijouterie_zaher_{dt_date.today().isoformat()}.json"
+    
+    return StreamingResponse(
+        file_stream, 
+        media_type="application/json", 
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+@app.post("/settings/import", name="import_data")
+async def import_data(
+    request: Request,
+    backup_file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(web_require_permission("is_admin")) # Admin seulement
+):
+    """Importe et restaure les données depuis un fichier JSON."""
+    
+    if not backup_file.filename.endswith(".json"):
+        # Gérer l'erreur de type de fichier
+        return RedirectResponse(request.url_for('settings_page'), status_code=status.HTTP_302_FOUND)
+
+    try:
+        contents = await backup_file.read()
+        data = json.loads(contents.decode("utf-8"))
+
+        # --- DANGER : SUPPRESSION DES DONNÉES ---
+        # Supprimer dans l'ordre inverse des dépendances
+        await db.execute(delete(AuditLog))
+        await db.execute(delete(LoanRepayment))
+        await db.execute(delete(LoanSchedule))
+        await db.execute(delete(Loan))
+        await db.execute(delete(Pay))
+        await db.execute(delete(Deposit))
+        await db.execute(delete(Leave))
+        await db.execute(delete(Attendance))
+        await db.execute(delete(Employee))
+        await db.execute(delete(User))
+        await db.execute(delete(Branch))
+        # Ne pas supprimer les Rôles, car ils sont fondamentaux
+        
+        # --- RÉINSERTION DES DONNÉES ---
+        # (Note : ceci ne gère pas les conflits d'ID, suppose une base vide)
+        
+        if "branches" in data:
+            for item in data["branches"]:
+                db.add(Branch(**item))
+        await db.flush() # Pour que les ID de Branch soient dispo
+
+        if "users" in data:
+            for item in data["users"]:
+                # Ne pas réimporter le mot de passe, l'utilisateur devra le réinitialiser
+                item.pop('hashed_password', None) 
+                db.add(User(**item))
+        
+        if "employees" in data:
+            for item in data["employees"]:
+                db.add(Employee(**item))
+        
+        await db.flush() # IDs d'employé dispo
+
+        if "attendance" in data:
+            for item in data["attendance"]:
+                db.add(Attendance(**item))
+        if "leaves" in data:
+            for item in data["leaves"]:
+                db.add(Leave(**item))
+        if "deposits" in data:
+            for item in data["deposits"]:
+                db.add(Deposit(**item))
+        if "pay_history" in data:
+            for item in data["pay_history"]:
+                db.add(Pay(**item))
+        
+        if "loans" in data:
+            for item in data["loans"]:
+                db.add(Loan(**item))
+        await db.flush() # IDs de prêt dispo
+        
+        if "loan_schedules" in data:
+            for item in data["loan_schedules"]:
+                db.add(LoanSchedule(**item))
+        
+        if "loan_repayments" in data:
+            for item in data["loan_repayments"]:
+                db.add(LoanRepayment(**item))
+
+        await db.commit()
+        
+    except Exception as e:
+        await db.rollback()
+        print(f"ERREUR lors de l'import: {e}")
+        # Idéalement : ajouter un message d'erreur flash
+    
+    return RedirectResponse(request.url_for('settings_page'), status_code=status.HTTP_302_FOUND)
+
+
 #
+# --- SECTION DES PRÊTS (WEB) ---
 #
 
 @app.get("/loans", name="loans_page")
 async def loans_page(request: Request, db: AsyncSession = Depends(get_db), user: dict = Depends(web_require_permission("can_manage_loans"))):
     employees = (await db.execute(select(Employee).where(Employee.active==True).order_by(Employee.first_name))).scalars().all()
     
-    # --- CORRECTION ---
-    # (Ajout de .options(selectinload(Loan.employee)) pour éviter les erreurs dans le template)
     loans = (await db.execute(
         select(Loan).options(selectinload(Loan.employee))
         .order_by(Loan.created_at.desc()).limit(200)
     )).scalars().all()
-    # --- FIN CORRECTION ---
     
     return templates.TemplateResponse("loans.html", {"request": request, "user": user, "app_name": APP_NAME, "employees": employees, "loans": loans})
 
@@ -1187,17 +1150,10 @@ async def loans_create_web(
     user: dict = Depends(web_require_permission("can_manage_loans")),
 ):
     payload = LoanCreate(
-        employee_id=employee_id, 
-        principal=principal, 
-        interest_type="none", 
-        annual_interest_rate=None,
-        term_count=term_count, 
-        term_unit=term_unit,
-        start_date=start_date, 
-        first_due_date=first_due_date, 
-        fee=None
+        employee_id=employee_id, principal=principal, interest_type="none", 
+        annual_interest_rate=None, term_count=term_count, term_unit=term_unit,
+        start_date=start_date, first_due_date=first_due_date, fee=None
     )
-    # Reuse API path
     from app.api.loans import create_loan
     await create_loan(payload, db, user)
     return RedirectResponse(request.url_for("loans_page"), status_code=status.HTTP_302_FOUND)
@@ -1219,8 +1175,8 @@ async def loan_detail_page(
         select(Loan)
         .options(
             selectinload(Loan.employee), 
-            selectinload(Loan.schedules),  # <-- Simplifié
-            selectinload(Loan.repayments)   # <-- Simplifié
+            selectinload(Loan.schedules),  # Simplifié
+            selectinload(Loan.repayments)   # Simplifié
         )
         .where(Loan.id == loan_id)
     )).scalar_one_or_none()
@@ -1240,6 +1196,37 @@ async def loan_detail_page(
             "today_date": today_date
         }
     )
+
+# --- NOUVEAU : Route pour supprimer un prêt ---
+@app.post("/loan/{loan_id}/delete", name="loan_delete_web")
+async def loan_delete_web(
+    request: Request,
+    loan_id: int,
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(web_require_permission("can_manage_loans")) # Ou 'is_admin'
+):
+    """Supprime un prêt, ses échéances et ses remboursements."""
+    
+    loan = (await db.execute(
+        select(Loan).options(selectinload(Loan.employee)).where(Loan.id == loan_id)
+    )).scalar_one_or_none()
+
+    if loan:
+        try:
+            # La suppression en cascade est gérée par app/models.py
+            await db.delete(loan)
+            await db.commit()
+            
+            await log(
+                db, user['id'], "delete", "loan", loan_id,
+                loan.employee.branch_id, f"Prêt supprimé pour l'employé ID={loan.employee_id}"
+            )
+        except Exception as e:
+            await db.rollback()
+            print(f"Erreur lors de la suppression du prêt: {e}")
+
+    return RedirectResponse(request.url_for("loans_page"), status_code=status.HTTP_302_FOUND)
+# --- FIN NOUVEAU ---
     
 @app.post("/loan/{loan_id}/repay", name="loan_repay_web")
 async def loan_repay_web(
@@ -1254,15 +1241,12 @@ async def loan_repay_web(
     """Traite le formulaire de remboursement depuis la page web."""
 
     payload = schemas.RepaymentCreate(
-        amount=amount,
-        paid_on=paid_on,
-        source="cash", 
-        notes=notes,
-        schedule_id=None 
+        amount=amount, paid_on=paid_on, source="cash", 
+        notes=notes, schedule_id=None 
     )
     
     try:
-        # Appeler la fonction API
+        # L'API (repay) gère déjà la logique de paiement flexible/partiel
         await loans_api.repay(loan_id=loan_id, payload=payload, db=db, user=user)
     except HTTPException as e:
         print(f"Erreur lors du remboursement: {e.detail}")
