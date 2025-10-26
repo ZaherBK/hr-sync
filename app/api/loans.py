@@ -18,7 +18,7 @@ router = APIRouter(prefix="/api/loans", tags=["loans"])
 
 # Helper: DTI eligibility
 async def _check_eligibility(db: AsyncSession, employee_id: int, amount_per_term: Decimal, unit: LoanTermUnit):
-    # salary من Employee (موجود في موديلك) :contentReference[oaicite:7]{index=7}
+    # salary من Employee (موجود في موديلك)
     emp = await db.get(Employee, employee_id)
     if not emp or not emp.active:
         raise HTTPException(400, "Employee not eligible")
@@ -81,22 +81,31 @@ async def create_loan(payload: LoanCreate, db: AsyncSession = Depends(get_db), u
     await db.flush()  # نحتاج id لتوليد الجدول
 
     rows = build_schedule(loan)
-    # تحقق DTI على أول قسط (تقريب)
-    if rows:
+    
+    # --- CORRECTION DTI (Désactivé comme demandé) ---
+    if rows and False: # Mettre à True pour réactiver le check DTI
         # await _check_eligibility(db, loan.employee_id, rows[0].due_total, loan.term_unit)
         pass
+    # --- FIN CORRECTION DTI ---
 
     for r in rows:
         db.add(r)
 
-    loan.schedules = rows  # <--- AJOUTEZ CETTE LIGNE
-
+    # --- DEBUT DE LA CORRECTION ---
+    # NE PAS FAIRE CECI - CELA CAUSE LE CRASH "MissingGreenlet"
+    # loan.schedules = rows 
+    
     # عند الموافقة مباشرةً (اختياري: تظل Draft لحين approve endpoint)
     loan.status = LoanStatus.approved
-    recompute_derived(loan)
+    
+    # Passer 'rows' en argument pour éviter le lazy-load
+    recompute_derived(loan, schedules=rows)
 
+    # AJOUTER commit et refresh car get_db ne le fait plus
     await db.commit()
     await db.refresh(loan)
+    # --- FIN DE LA CORRECTION ---
+    
     return loan
 
 @router.get("/{loan_id}", response_model=LoanOut, dependencies=[Depends(api_require_permission("can_manage_loans"))])
@@ -154,10 +163,17 @@ async def repay(loan_id: int, payload: RepaymentCreate, db: AsyncSession = Depen
     target.paid_total += pay_amount
     # تقسيم المبلغ على أصل/فائدة بنفس النسبة المتبقية
     if target.due_total > 0:
-        p_ratio = (target.due_principal - target.paid_principal) / (target.due_total - (target.paid_total - pay_amount))
-        i_ratio = (target.due_interest - target.paid_interest) / (target.due_total - (target.paid_total - pay_amount))
-        target.paid_principal += (pay_amount * p_ratio)
-        target.paid_interest  += (pay_amount * i_ratio)
+        # --- CORRECTION pour éviter la division par zéro si le paiement était déjà partiel ---
+        remaining_due_before_pay = target.due_total - (target.paid_total - pay_amount)
+        if remaining_due_before_pay > 0:
+            p_ratio = (target.due_principal - target.paid_principal) / remaining_due_before_pay
+            i_ratio = (target.due_interest - target.paid_interest) / remaining_due_before_pay
+            target.paid_principal += (pay_amount * p_ratio)
+            target.paid_interest  += (pay_amount * i_ratio)
+        else:
+            # Si le paiement restant était 0 (cas étrange), mettez tout sur le principal
+            target.paid_principal += pay_amount
+        # --- FIN CORRECTION ---
 
     if target.paid_total >= target.due_total:
         target.status = ScheduleStatus.paid
@@ -172,7 +188,10 @@ async def repay(loan_id: int, payload: RepaymentCreate, db: AsyncSession = Depen
     db.add(repayment)
 
     # تحديث المشتقات
-    recompute_derived(loan)
+    # ICI, nous devons charger les schedules car 'loan' ne les a pas
+    # C'est OK de le faire car repay() est une fonction async
+    await db.refresh(loan, ['schedules']) 
+    recompute_derived(loan, schedules=loan.schedules) # Passez-les
 
     # إغلاق كامل؟
     if loan.outstanding_principal <= 0 and all(s.status == ScheduleStatus.paid for s in loan.schedules):
