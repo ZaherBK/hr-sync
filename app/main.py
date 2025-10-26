@@ -6,6 +6,7 @@ from datetime import timedelta, date as dt_date, datetime
 from decimal import Decimal
 from typing import Annotated, List, Optional
 import json
+import enum # Ajout de l'import enum manquant
 
 from fastapi import Depends, FastAPI, Form, HTTPException, Request, status, APIRouter, UploadFile, File
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
@@ -21,6 +22,7 @@ import io # Importé pour l'export
 
 # --- CORRIGÉ : Import de get_db depuis .deps ---
 from .db import engine, Base, AsyncSessionLocal
+# --- CORRIGÉ : Import de hash_password ---
 from .auth import authenticate_user, create_access_token, hash_password, ACCESS_TOKEN_EXPIRE_MINUTES, api_require_permission
 
 # Importer TOUS les modèles nécessaires
@@ -303,7 +305,7 @@ async def employees_create(
     permissions = user.get("permissions", {})
     
     if not permissions.get("is_admin") and user.get("branch_id") != branch_id:
-         return RedirectResponse(request.url_for('employees_page'), status_code=status.HTTP_302_FOUND)
+        return RedirectResponse(request.url_for('employees_page'), status_code=status.HTTP_302_FOUND)
     
     if not permissions.get("is_admin"):
         salary = None
@@ -1074,11 +1076,21 @@ async def import_data(
                 db.add(Branch(**item))
         await db.flush() # Pour que les ID de Branch soient dispo
 
+        # --- FIX: Gérer le mot de passe manquant ---
         if "users" in data:
-            for item in data["users"]:
-                # Ne pas réimporter le mot de passe, l'utilisateur devra le réinitialiser
-                item.pop('hashed_password', None) 
-                db.add(User(**item))
+            # Créer un mot de passe par défaut pour tous les utilisateurs importés.
+            # Ils devront utiliser "password123" pour se connecter.
+            default_hashed_password = hash_password("password123")
+
+            for user_data in data["users"]:
+                
+                # Le fichier JSON n'a pas de 'hashed_password' car il a été exporté sans.
+                # Nous devons l'ajouter manuellement.
+                user_data['hashed_password'] = default_hashed_password
+                
+                # Maintenant, nous pouvons créer l'utilisateur
+                db.add(User(**user_data))
+        # --- FIN DU FIX ---
         
         if "employees" in data:
             for item in data["employees"]:
@@ -1142,10 +1154,13 @@ async def loans_create_web(
     request: Request,
     employee_id: Annotated[int, Form()],
     principal: Annotated[Decimal, Form()],
+    # --- FIX LOGIQUE PRÊT: Termes non pertinents, mais gardés pour compatibilité API ---
     term_count: Annotated[int, Form()] = 1,
     term_unit: Annotated[str, Form()] = "month",
     start_date: Annotated[dt_date, Form()] = dt_date.today(),
     first_due_date: Annotated[dt_date | None, Form()] = None,
+    # --- NOUVEAU: Ajout du champ notes ---
+    notes: Annotated[str, Form()] = None,
     db: AsyncSession = Depends(get_db),
     user: dict = Depends(web_require_permission("can_manage_loans")),
 ):
@@ -1153,9 +1168,17 @@ async def loans_create_web(
         employee_id=employee_id, principal=principal, interest_type="none", 
         annual_interest_rate=None, term_count=term_count, term_unit=term_unit,
         start_date=start_date, first_due_date=first_due_date, fee=None
+        # Note: Le payload de l'API n'a pas de champ 'notes'
     )
     from app.api.loans import create_loan
-    await create_loan(payload, db, user)
+    
+    # --- FIX: L'API create_loan ne gère pas 'notes', l'ajouter manuellement ---
+    new_loan = await create_loan(payload, db, user)
+    if new_loan and notes:
+        new_loan.notes = notes
+        await db.commit()
+    # --- FIN DU FIX ---
+    
     return RedirectResponse(request.url_for("loans_page"), status_code=status.HTTP_302_FOUND)
 
 
@@ -1255,3 +1278,4 @@ async def loan_repay_web(
         request.url_for("loan_detail_page", loan_id=loan_id), 
         status_code=status.HTTP_302_FOUND
     )
+
