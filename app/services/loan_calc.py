@@ -1,11 +1,17 @@
 from datetime import date, timedelta
 from decimal import Decimal, ROUND_HALF_UP
+from typing import List, Optional
 from dateutil.relativedelta import relativedelta
 
-from app.models import Loan, LoanSchedule, LoanTermUnit, LoanInterestType
+# --- AJOUTÉ : Importations nécessaires ---
+from app.models import (
+    Loan, LoanSchedule, LoanTermUnit, LoanInterestType,
+    ScheduleStatus
+)
+# --- FIN AJOUT ---
 
-Q = Decimal("0.001")   # داخلياً 3 منازل
-TWO = Decimal("0.01")  # للعرض
+Q = Decimal("0.001")    # داخلياً 3 منازل
+TWO = Decimal("0.01")   # للعرض
 
 def _round_q(x: Decimal) -> Decimal:
     return x.quantize(Q, rounding=ROUND_HALF_UP)
@@ -60,7 +66,7 @@ def build_schedule(loan: Loan) -> list[LoanSchedule]:
                 due_principal=principal, due_interest=interest, due_total=total))
             principal_left = _round_q(principal_left - principal)
 
-    else:  # reducing (annuity)
+    else:   # reducing (annuity)
         if r_period <= 0:
             raise ValueError("Reducing interest requires positive annual_interest_rate")
         n = loan.term_count
@@ -82,17 +88,35 @@ def build_schedule(loan: Loan) -> list[LoanSchedule]:
 
     return rows
 
-def recompute_derived(loan: Loan):
-    """تحديث الحقول المشتقة على الكائن (دون commit)."""
-    scheduled_total = sum((s.due_total for s in loan.schedules), Decimal("0"))
-    repaid_total = sum((s.paid_total for s in loan.schedules), Decimal("0"))
-    outstanding_principal = sum((s.due_principal - s.paid_principal for s in loan.schedules), Decimal("0"))
+#
+# --- DEBUT DE LA CORRECTION ---
+#
+def recompute_derived(loan: Loan, schedules: Optional[List[LoanSchedule]] = None):
+    """
+    تحديث الحقول المشتقة على الكائن (دون commit).
+    Utilise la liste 'schedules' fournie pour éviter le lazy-loading.
+    """
+
+    # Utilise la liste fournie si elle existe, sinon utilise la relation
+    schedules_list = schedules if schedules is not None else loan.schedules
+
+    scheduled_total = sum((s.due_total for s in schedules_list), Decimal("0"))
+    repaid_total = sum((s.paid_total for s in schedules_list), Decimal("0"))
+    
+    # Correction : Le principal restant doit être basé sur le principal du prêt
+    outstanding_principal = loan.principal - sum((s.paid_principal for s in schedules_list), Decimal("0"))
+
     next_due = None
-    for s in sorted(loan.schedules, key=lambda x: (x.status != "paid", x.sequence_no)):
-        if s.status in ("pending", "partial", "overdue"):
+    # Utilise les Enums importés
+    for s in sorted(schedules_list, key=lambda x: (x.status != ScheduleStatus.paid, x.sequence_no)):
+        if s.status in (ScheduleStatus.pending, ScheduleStatus.partial, ScheduleStatus.overdue):
             next_due = s.due_date
             break
+            
     loan.scheduled_total = _round_q(scheduled_total)
     loan.repaid_total = _round_q(repaid_total)
     loan.outstanding_principal = _round_q(outstanding_principal)
     loan.next_due_on = next_due
+#
+# --- FIN DE LA CORRECTION ---
+#
