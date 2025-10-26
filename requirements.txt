@@ -14,3 +14,6 @@ asyncpg==0.29.0
 
 # For forms/csrf or misc if تحتاجها
 itsdangerous==2.2.0
+
+# New dependency for loan calculations
+python-dateutil>=2.8.2
