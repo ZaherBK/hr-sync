@@ -226,7 +226,7 @@ class AuditOut(BaseModel):
 class LoanBase(BaseModel):
     employee_id: int
     principal: Decimal = Field(..., gt=0, max_digits=12, decimal_places=3)
-    interest_type: Literal["none", "flat", "reducing"]
+    interest_type: Literal["none", "flat", "reducing"] = "none" # <-- AJOUTEZ = "none"
     annual_interest_rate: Decimal | None = Field(None, ge=0, max_digits=7, decimal_places=4)
     term_count: int = Field(..., gt=0, le=480)
     term_unit: Literal["week", "month"]
