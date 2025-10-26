@@ -94,8 +94,8 @@ async def create_loan(payload: LoanCreate, db: AsyncSession = Depends(get_db), u
     loan.status = LoanStatus.approved
     recompute_derived(loan)
 
-    await db.commit()
-    await db.refresh(loan)
+    # await db.commit()
+    # await db.refresh(loan)
     return loan
 
 @router.get("/{loan_id}", response_model=LoanOut, dependencies=[Depends(api_require_permission("can_manage_loans"))])
