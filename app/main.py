@@ -281,12 +281,16 @@ async def loan_detail_page(
     
     # Mettre à jour la requête pour pré-charger les échéances (schedules) 
     # et les remboursements (repayments)
-    loan = (await db.execute(
+loan = (await db.execute(
         select(Loan)
         .options(
             selectinload(Loan.employee), 
-            selectinload(Loan.schedules).order_by(models.LoanSchedule.sequence_no), # <-- AJOUTÉ
-            selectinload(Loan.repayments).order_by(models.LoanRepayment.paid_on.desc()) # <-- AJOUTÉ
+            
+            # --- CORRECTION ---
+            # Appliquez le 'order_by' à la relation, à l'intérieur de 'selectinload'
+            selectinload(Loan.schedules.order_by(models.LoanSchedule.sequence_no)),
+            selectinload(Loan.repayments.order_by(models.LoanRepayment.paid_on.desc()))
+            
         )
         .where(Loan.id == loan_id)
     )).scalar_one_or_none()
