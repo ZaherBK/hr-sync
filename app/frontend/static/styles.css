@@ -315,14 +315,24 @@ input[type="text"], input[type="date"], input[type="number"], input[type="passwo
 /* Placeholder brighter */
 ::placeholder{ color: var(--placeholder); }
 
-input:focus, select:focus, .form-control:focus, .form-select:focus{
-    outline:none; 
-    box-shadow: var(--ring); 
+input:focus,
+select:focus,
+.form-control:focus,
+.form-select:focus {
+    outline: none;
+    box-shadow: var(--ring);
     border-color: rgba(186, 158, 255, 0.8);
-    color: var(--text) !important;   /* يمنع أي override من Bootstrap */
-    caret-color: var(--text);        /* لون المؤشر */
-    background: inherit;             /* لا تغيّر الخلفية أثناء التركيز */
+    
+    /* 👇 إضافات مهمة لحل مشكلة عدم ظهور النص أثناء الكتابة */
+    color: var(--text) !important;       /* يثبّت لون النص داخل الحقل */
+    -webkit-text-fill-color: var(--text);/* لإجبار كروم/إيدج */
+    caret-color: var(--text);            /* لون المؤشر */
+    
+    /* 👇 يمنع تغيير لون الخلفية عند الكتابة */
+    background: linear-gradient(180deg, #1c2540, #182238) !important;
+    background-color: transparent !important;
 }
+
 .form-actions{ display:flex; gap:.6rem; justify-content:flex-end; }
 
 input:-webkit-autofill {
