@@ -33,10 +33,13 @@
                     <p class="card-text"><strong>Date de début:</strong> {{ loan.start_date }}</p>
                     <p class="card-text"><strong>Termes:</strong> {{ loan.term_count }} {{ loan.term_unit.value }}(s)</p>
                     <hr>
-                    <p class="card-text"><strong>Total à payer:</strong> {{ "%.2f"|format(loan.due_total) }} TND</p>
+                    
+                    <p class="card-text"><strong>Total à payer:</strong> {{ "%.2f"|format(loan.scheduled_total) }} TND</p>
+                    
                     <p class="card-text"><strong>Total Remboursé:</strong> {{ "%.2f"|format(loan.repaid_total) }} TND</p>
+                    
                     <p class="card-text"><strong>Solde Restant:</strong> 
-                        <strong>{{ "%.2f"|format(loan.due_total - loan.repaid_total) }} TND</strong>
+                        <strong>{{ "%.2f"|format(loan.scheduled_total - loan.repaid_total) }} TND</strong>
                     </p>
                 </div>
             </div>
