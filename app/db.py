@@ -11,7 +11,7 @@ from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse
 from typing import AsyncGenerator
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.orm import declarative_base, sessionmaker
-
+from fastapi import Depends  # <--- FIX: AJOUTÉ L'IMPORTATION MANQUANTE
 
 def _normalize_asyncpg_url(url: str) -> tuple[str, dict]:
     """Normalize an asyncpg URL, cleaning up query params and adding SSL.
@@ -52,6 +52,9 @@ AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 Base = declarative_base()
 
 
+#
+# --- DEBUT DE LA CORRECTION ---
+#
 async def get_session() -> AsyncGenerator[AsyncSession, None]:
     """
     (Correct) Yield an asynchronous session for use with FastAPI dependencies.
@@ -73,3 +76,6 @@ async def get_db(session: AsyncSession = Depends(get_session)) -> AsyncSession:
     This is now just a simple wrapper.
     """
     yield session
+#
+# --- FIN DE LA CORRECTION ---
+#
