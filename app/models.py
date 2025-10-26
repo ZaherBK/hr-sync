@@ -17,8 +17,7 @@ from sqlalchemy import (
     Text,
     func,
     Numeric,
-    desc,  # <--- AJOUTÉ
-    text   # <--- AJOUTÉ
+    desc  # <--- Assurez-vous que 'desc' est importé
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -113,6 +112,8 @@ class Employee(Base):
     leaves = relationship("Leave", back_populates="employee")
     deposits = relationship("Deposit", back_populates="employee")
     pay_history = relationship("Pay", back_populates="employee")
+    # Ajout d'une relation inverse pour les prêts, si vous en avez besoin
+    loans = relationship("Loan", back_populates="employee")
 
 
 class AttendanceType(str, enum.Enum):
@@ -248,21 +249,21 @@ class Loan(Base):
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    # --- CORRECTION FINALE ---
-    employee = relationship("Employee")
+    # --- CORRECTION ---
+    employee = relationship("Employee", back_populates="loans")
     schedules = relationship(
         "LoanSchedule", 
         back_populates="loan", 
         cascade="all, delete-orphan",
-        # On utilise text() pour que SQLAlchemy l'interprète correctement
-        order_by=text("loan_schedules.sequence_no")
+        # Utilisez un simple string pour le nom de la colonne
+        order_by="sequence_no"
     )
     repayments = relationship(
         "LoanRepayment", 
         back_populates="loan", 
         cascade="all, delete-orphan",
-        # On utilise desc() et text()
-        order_by=desc(text("loan_repayments.paid_on"))
+        # Utilisez desc() avec un simple string pour le nom de la colonne
+        order_by=desc("paid_on")
     )
     # --- FIN CORRECTION ---
 
@@ -304,7 +305,7 @@ class LoanRepayment(Base):
 class LoanSettings(Base):
     __tablename__ = "loan_settings"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    max_dti: Mapped[Decimal] = mapped_column(Numeric(5, 3), default=Decimal("0.300"))  # 30%
+    max_dti: Mapped[Decimal] = mapped_column(Numeric(5, 3), default=Decimal("0.300"))
     max_concurrent_loans: Mapped[int] = mapped_column(Integer, default=1)
     default_term_unit: Mapped[LoanTermUnit] = mapped_column(Enum(LoanTermUnit), default=LoanTermUnit.month)
     grace_days: Mapped[int] = mapped_column(Integer, default=3)
