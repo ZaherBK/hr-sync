@@ -28,6 +28,7 @@ class RoleBase(BaseModel):
     can_manage_absences: bool = False
     can_manage_leaves: bool = False
     can_manage_deposits: bool = False
+    can_manage_loans: bool = False
 
 class RoleCreate(RoleBase):
     pass
@@ -46,6 +47,7 @@ class RoleUpdate(BaseModel):
     can_manage_absences: Optional[bool] = None
     can_manage_leaves: Optional[bool] = None
     can_manage_deposits: Optional[bool] = None
+    can_manage_loans: Optional[bool] = None
 
 class RoleOut(RoleBase):
     id: int
