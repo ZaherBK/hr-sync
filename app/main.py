@@ -14,7 +14,7 @@ from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 from sqlalchemy import select, delete, func, case, extract, or_
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload  # <--- IMPORT IMPORTANT
+from sqlalchemy.orm import selectinload, subqueryload
 from sqlalchemy.future import select
 from . import models, schemas
 
@@ -1212,18 +1212,19 @@ async def loan_detail_page(
 ):
     """Affiche la page de détails d'un prêt."""
     
-    # REQUÊTE CORRIGÉE AVEC INDENTATION ET SYNTAXE
+    # --- CORRECTION ---
+    # Nous utilisons subqueryload() au lieu de selectinload()
+    # car il nous permet d'appliquer un order_by()
     loan = (await db.execute(
         select(Loan)
         .options(
             selectinload(Loan.employee), 
-            selectinload(Loan.schedules.order_by(models.LoanSchedule.sequence_no)), # Syntaxe corrigée
-            selectinload(Loan.repayments.order_by(models.LoanRepayment.paid_on.desc())) # Syntaxe corrigée
+            subqueryload(Loan.schedules).order_by(models.LoanSchedule.sequence_no),
+            subqueryload(Loan.repayments).order_by(models.LoanRepayment.paid_on.desc())
         )
-        .where(Loan.id == loan_id)  # <--- Indentation corrigée
+        .where(Loan.id == loan_id)
     )).scalar_one_or_none()
 
-    # Indentation corrigée
     if not loan:
         return RedirectResponse(request.url_for("loans_page"), status_code=status.HTTP_302_FOUND)
         
