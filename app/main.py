@@ -285,13 +285,11 @@ loan = (await db.execute(
         select(Loan)
         .options(
             selectinload(Loan.employee), 
-            
-            # --- CORRECTION ---
-            # Appliquez le 'order_by' à la relation, à l'intérieur de 'selectinload'
             selectinload(Loan.schedules.order_by(models.LoanSchedule.sequence_no)),
             selectinload(Loan.repayments.order_by(models.LoanRepayment.paid_on.desc()))
-            
         )
+        .where(Loan.id == loan_id)
+    )).scalar_one_or_none()
         .where(Loan.id == loan_id)
     )).scalar_one_or_none()
 
@@ -308,7 +306,7 @@ loan = (await db.execute(
             "user": user, 
             "app_name": APP_NAME, 
             "loan": loan,
-            "today_date": today_date # <-- AJOUTÉ
+            "today_date": today_date
         }
     )
     """Traite la soumission du formulaire de connexion."""
