@@ -3,12 +3,12 @@ from decimal import Decimal, ROUND_HALF_UP
 from typing import List, Optional
 from dateutil.relativedelta import relativedelta
 
-# --- Importations nécessaires ---
+# --- AJOUTÉ : Importations nécessaires ---
 from app.models import (
     Loan, LoanSchedule, LoanTermUnit, LoanInterestType,
     ScheduleStatus  # Assurez-vous que ScheduleStatus est importé
 )
-# --- Fin Importations ---
+# --- FIN AJOUT ---
 
 Q = Decimal("0.001")    # داخلياً 3 منازل
 TWO = Decimal("0.01")   # للعرض
@@ -104,13 +104,16 @@ def recompute_derived(loan: Loan, schedules: Optional[List[LoanSchedule]] = None
     scheduled_total = sum((s.due_total or 0 for s in schedules_list), Decimal("0"))
     repaid_total = sum((s.paid_total or 0 for s in schedules_list), Decimal("0"))
     
-    # Correction logique et TypeError
+    # Correction logique et TypeError: Le principal restant est le principal total
+    # moins ce qui a été payé sur le principal.
     outstanding_principal = loan.principal - sum((s.paid_principal or 0 for s in schedules_list), Decimal("0"))
 
     next_due = None
     # Utilise les Enums importés
     for s in sorted(schedules_list, key=lambda x: (x.status != ScheduleStatus.paid, x.sequence_no)):
-        if s.status in (ScheduleStatus.pending, ScheduleStatus.partial, ScheduleStatus.overdue):
+        # Correction: s.status peut être None pour les nouveaux objets
+        status = s.status or ScheduleStatus.pending 
+        if status in (ScheduleStatus.pending, ScheduleStatus.partial, ScheduleStatus.overdue):
             next_due = s.due_date
             break
             
