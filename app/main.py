@@ -14,7 +14,7 @@ from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 from sqlalchemy import select, delete, func, case, extract, or_
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload, subqueryload
+from sqlalchemy.orm import selectinload  # <--- IMPORT IMPORTANT
 from sqlalchemy.future import select
 from . import models, schemas
 
