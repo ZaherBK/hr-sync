@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block content %}
+<h2 class="page-title"><i class="fa-solid fa-hand-holding-dollar"></i> Prêts</h2>
+
+<div class="card form-card">
+  <form method="post" action="{{ url_for('loans_create_web') }}" class="form-grid">
+    <div class="form-group">
+      <label>Employé</label>
+      <select name="employee_id" class="form-select" required>
+        {% for e in employees %}<option value="{{e.id}}">{{e.first_name}} {{e.last_name}}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="form-group"><label>Montant</label><input type="number" step="0.001" name="principal" class="form-control" required></div>
+    <div class="form-group"><label>Type</label>
+      <select name="interest_type" class="form-select">
+        <option value="none">Sans intérêt</option><option value="flat">Intérêt fixe</option><option value="reducing">Dégressif</option>
+      </select>
+    </div>
+    <div class="form-group"><label>TAEG (annuel)</label><input type="number" step="0.0001" name="annual_interest_rate" class="form-control"></div>
+    <div class="form-group"><label>Termes</label><input type="number" name="term_count" class="form-control" required></div>
+    <div class="form-group"><label>Fréquence</label>
+      <select name="term_unit" class="form-select"><option value="month">Mensuel</option><option value="week">Hebdo</option></select>
+    </div>
+    <div class="form-group"><label>Début</label><input type="date" name="start_date" class="form-control" required></div>
+    <div class="form-group"><label>1ère Échéance</label><input type="date" name="first_due_date" class="form-control"></div>
+    <div class="form-group"><label>Frais</label><input type="number" step="0.001" name="fee" class="form-control"></div>
+    <div class="form-actions"><button class="btn btn-primary">Créer</button></div>
+  </form>
+</div>
+
+<div class="card table-card">
+  <div class="table-responsive">
+    <table>
+      <thead><tr><th>#</th><th>Employé</th><th>Montant</th><th>Statut</th><th>Prochain Échéance</th><th>Actions</th></tr></thead>
+      <tbody>
+        {% for l in loans %}
+        <tr>
+          <td>{{ l.id }}</td>
+          <td>{{ l.employee.first_name }} {{ l.employee.last_name }}</td>
+          <td>{{ '%.2f'|format(l.principal) }}</td>
+          <td><span class="badge">{{ l.status }}</span></td>
+          <td>{{ l.next_due_on or '-' }}</td>
+          <td><a class="btn btn-secondary" href="{{ url_for('loan_detail_page', loan_id=l.id) }}">Détails</a></td>
+        </tr>
+        {% else %}<tr><td colspan="6" class="no-data">Aucun prêt.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
