@@ -16,7 +16,7 @@ from sqlalchemy import (
     String,
     Text,
     func,
-    Numeric,
+    Numeric, 
     desc  # <--- Assurez-vous que 'desc' est importé
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -113,9 +113,9 @@ class Employee(Base):
     deposits = relationship("Deposit", back_populates="employee")
     pay_history = relationship("Pay", back_populates="employee")
     
-    # --- CORRECTION AJOUTÉE ---
+    # --- AJOUT DE LA RELATION INVERSE ---
     loans = relationship("Loan", back_populates="employee")
-    # --- FIN CORRECTION ---
+    # --- FIN ---
 
 
 class AttendanceType(str, enum.Enum):
@@ -251,21 +251,22 @@ class Loan(Base):
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    # --- CORRECTION FINALE ---
+    # --- CORRECTION FINALE AVEC LAMBDA ---
     employee = relationship("Employee", back_populates="loans")
+    
     schedules = relationship(
         "LoanSchedule", 
         back_populates="loan", 
         cascade="all, delete-orphan",
-        # Utilisez une chaîne "ClassName.column_name"
+        # Utilisez une lambda pour résoudre la référence APRES la définition de LoanSchedule
         order_by=lambda: LoanSchedule.sequence_no
     )
     repayments = relationship(
         "LoanRepayment", 
         back_populates="loan", 
         cascade="all, delete-orphan",
-        # Utilisez desc() avec la chaîne "ClassName.column_name"
-        order_by=lambda: LoanRepayment.paid_on.desc()
+        # Utilisez une lambda avec desc() pour résoudre la référence
+        order_by=lambda: desc(LoanRepayment.paid_on)
     )
     # --- FIN CORRECTION ---
 
@@ -302,7 +303,7 @@ class LoanRepayment(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     loan = relationship("Loan", back_populates="repayments")
-    schedule = relationship("LoanSchedule")
+    schedule = relationship("LoanSchedule", foreign_keys=[schedule_id]) # Spécifiez la clé étrangère pour éviter l'ambiguïté
 
 class LoanSettings(Base):
     __tablename__ = "loan_settings"
