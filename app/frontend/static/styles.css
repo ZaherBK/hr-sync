@@ -5,7 +5,9 @@
 /* ---------- Reset ---------- */
 * { box-sizing: border-box; }
 html, body { height: 100%; }
+html .form-control:focus { background-color: transparent !important; color: var(--text) !important; }
 body { margin: 0; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+
 
 /* ---------- Tokens ---------- */
 :root{
@@ -311,9 +313,12 @@ input[type="text"], input[type="date"], input[type="number"], input[type="passwo
   background: linear-gradient(180deg, #222b44, #1b2236); /* تدرج أنيق */
   color: var(--text);
   box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
+  transition: background-color 0s, color 0s, box-shadow .25s ease; /* لا تغيّر اللون */
+
 }
 /* Placeholder brighter */
 ::placeholder{ color: var(--placeholder); }
+
 
 input:focus,
 select:focus,
@@ -331,6 +336,8 @@ select:focus,
     /* 👇 يمنع تغيير لون الخلفية عند الكتابة */
     background: linear-gradient(180deg, #1c2540, #182238) !important;
     background-color: transparent !important;
+    transition: none !important;            /* يمنع وميض/تحوّل اللون أثناء الدخول */
+    filter: none !important;                /* يلغى أي تأثير يجي من Bootstrap/المتصفح */
 }
 
 .form-actions{ display:flex; gap:.6rem; justify-content:flex-end; }
