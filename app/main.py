@@ -103,6 +103,8 @@ async def on_startup() -> None:
     """Créer les tables de la base de données et ajouter les rôles/données initiaux."""
     print("Événement de démarrage...")
     async with engine.begin() as conn:
+        print("!!! ATTENTION : Suppression de toutes les tables... !!!")
+        await conn.run_sync(Base.metadata.drop_all)      # <--- AJOUTEZ CETTE LIGNE (TEMPORAIRE)
         print("Création de toutes les tables (si elles n'existent pas)...")
         await conn.run_sync(Base.metadata.create_all)
         print("Tables OK.")
