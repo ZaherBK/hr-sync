@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import enum
 from datetime import date, datetime
+from decimal import Decimal   # ← أضِف هذا السطر
 from sqlalchemy import (
     Boolean,
     Date,
