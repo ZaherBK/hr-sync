@@ -1213,7 +1213,7 @@ async def loan_detail_page(
     """Affiche la page de détails d'un prêt."""
     
     # --- CORRECTION ---
-    # L'ordre est maintenant géré par les modèles dans app/models.py.
+    # Le tri est maintenant géré par les modèles (app/models.py).
     # Nous avons juste besoin de charger les relations avec 'selectinload'.
     loan = (await db.execute(
         select(Loan)
@@ -1240,7 +1240,7 @@ async def loan_detail_page(
             "today_date": today_date
         }
     )
-
+    
 @app.post("/loan/{loan_id}/repay", name="loan_repay_web")
 async def loan_repay_web(
     request: Request,
