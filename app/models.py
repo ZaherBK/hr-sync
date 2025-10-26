@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import enum
 from datetime import date, datetime
-from decimal import Decimal   # ← أضِف هذا السطر
+from decimal import Decimal
 from sqlalchemy import (
     Boolean,
     Date,
@@ -16,19 +16,14 @@ from sqlalchemy import (
     String,
     Text,
     func,
-    Numeric, # Pour les montants
-    desc,  # <--- 1. AJOUTEZ 'desc' ICI
+    Numeric,
+    desc,  # <--- AJOUTÉ
+    text   # <--- AJOUTÉ
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .db import Base
 
-
-# --- SUPPRIMÉ ---
-# class Role(str, enum.Enum):
-#     admin = "admin"
-#     manager = "manager"
-# --- FIN SUPPRIMÉ ---
 
 # --- NOUVEAU MODÈLE : Role ---
 class Role(Base):
@@ -37,21 +32,14 @@ class Role(Base):
     name: Mapped[str] = mapped_column(String(100), unique=True)
     
     # --- Permissions ---
-    # "God Mode" - contourne toutes les autres vérifications
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False) 
-    
-    # Gestion du système
     can_manage_users: Mapped[bool] = mapped_column(Boolean, default=False)
     can_manage_roles: Mapped[bool] = mapped_column(Boolean, default=False)
     can_manage_branches: Mapped[bool] = mapped_column(Boolean, default=False)
     can_view_settings: Mapped[bool] = mapped_column(Boolean, default=False)
     can_clear_logs: Mapped[bool] = mapped_column(Boolean, default=False)
-    
-    # Gestion RH
     can_manage_employees: Mapped[bool] = mapped_column(Boolean, default=False)
     can_view_reports: Mapped[bool] = mapped_column(Boolean, default=False)
-    
-    # Gestion quotidienne
     can_manage_pay: Mapped[bool] = mapped_column(Boolean, default=False)
     can_manage_absences: Mapped[bool] = mapped_column(Boolean, default=False)
     can_manage_leaves: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -89,18 +77,12 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     full_name: Mapped[str] = mapped_column(String(255))
     hashed_password: Mapped[str] = mapped_column(String(255))
-    
-    # --- MODIFIÉ : Utilise la clé étrangère vers la table roles ---
     role_id: Mapped[int | None] = mapped_column(ForeignKey("roles.id"))
-    # --- FIN MODIFIÉ ---
-    
     branch_id: Mapped[int | None] = mapped_column(ForeignKey("branches.id"), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     
     # Relations
-    # --- MODIFIÉ : Relation vers le modèle Role ---
     permissions = relationship("Role", back_populates="users", lazy="joined")
-    # --- FIN MODIFIÉ ---
     branch = relationship("Branch", back_populates="users")
 
 
@@ -123,21 +105,19 @@ class Employee(Base):
     position: Mapped[str] = mapped_column(String(120))
     branch_id: Mapped[int] = mapped_column(ForeignKey("branches.id"))
     active: Mapped[bool] = mapped_column(Boolean, default=True)
-    
-    # --- NOUVEAU CHAMP : Salaire ---
-    salary: Mapped[float | None] = mapped_column(Numeric(10, 2), nullable=True) # Salaire de base
+    salary: Mapped[float | None] = mapped_column(Numeric(10, 2), nullable=True) 
     
     # Relations
     branch = relationship("Branch", back_populates="employees")
     attendances = relationship("Attendance", back_populates="employee")
     leaves = relationship("Leave", back_populates="employee")
     deposits = relationship("Deposit", back_populates="employee")
-    pay_history = relationship("Pay", back_populates="employee") # --- NOUVELLE RELATION ---
+    pay_history = relationship("Pay", back_populates="employee")
 
 
 class AttendanceType(str, enum.Enum):
     present = "present"
-    absent = "absent"   # On n'utilisera que 'absent'
+    absent = "absent"
 
 
 class Attendance(Base):
@@ -185,24 +165,23 @@ class Deposit(Base): # Avance
     # Relations
     employee = relationship("Employee", back_populates="deposits")
 
-# --- NOUVEAU MODÈLE : Paie (Pay) ---
+
 class PayType(str, enum.Enum):
-    hebdomadaire = "hebdomadaire" # Hebdomadaire (par semaine)
-    mensuel = "mensuel"       # Mensuel (par mois)
+    hebdomadaire = "hebdomadaire"
+    mensuel = "mensuel"
 
 class Pay(Base):
     __tablename__ = "pay_history"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     employee_id: Mapped[int] = mapped_column(ForeignKey("employees.id"))
-    amount: Mapped[float] = mapped_column(Numeric(10, 2)) # Montant payé
-    date: Mapped[date] = mapped_column(Date, index=True) # Date du paiement
-    pay_type: Mapped[PayType] = mapped_column(Enum(PayType)) # Type de paie
-    note: Mapped[str | None] = mapped_column(Text, nullable=True) # Note/Description
-    created_by: Mapped[int] = mapped_column(ForeignKey("users.id")) # Payé par
+    amount: Mapped[float] = mapped_column(Numeric(10, 2))
+    date: Mapped[date] = mapped_column(Date, index=True)
+    pay_type: Mapped[PayType] = mapped_column(Enum(PayType))
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_by: Mapped[int] = mapped_column(ForeignKey("users.id"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     # Relations
     employee = relationship("Employee", back_populates="pay_history")
-# --- FIN DU NOUVEAU MODÈLE ---
 
 
 class AuditLog(Base):
@@ -219,9 +198,9 @@ class AuditLog(Base):
 # --- Loans / Advances (structured) ---
 
 class LoanInterestType(str, enum.Enum):
-    none = "none"         # بدون فائدة (Advance)
-    flat = "flat"         # فائدة ثابتة على كامل المدة
-    reducing = "reducing" # فائدة على الرصيد المتناقص
+    none = "none"
+    flat = "flat"
+    reducing = "reducing"
 
 class LoanTermUnit(str, enum.Enum):
     week = "week"
@@ -262,7 +241,6 @@ class Loan(Base):
     created_by: Mapped[int] = mapped_column(ForeignKey("users.id"))
     status: Mapped[LoanStatus] = mapped_column(Enum(LoanStatus), default=LoanStatus.draft)
 
-    # مشتقات (تُحدَّث عبر الخدمة)
     scheduled_total: Mapped[Decimal] = mapped_column(Numeric(12, 3), default=Decimal("0"))
     repaid_total: Mapped[Decimal] = mapped_column(Numeric(12, 3), default=Decimal("0"))
     outstanding_principal: Mapped[Decimal] = mapped_column(Numeric(12, 3), default=Decimal("0"))
@@ -270,26 +248,29 @@ class Loan(Base):
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    # --- 2. MODIFIEZ LES RELATIONS ICI ---
+    # --- CORRECTION FINALE ---
     employee = relationship("Employee")
     schedules = relationship(
         "LoanSchedule", 
         back_populates="loan", 
         cascade="all, delete-orphan",
-        order_by="LoanSchedule.sequence_no"  # <-- AJOUTÉ
+        # On utilise text() pour que SQLAlchemy l'interprète correctement
+        order_by=text("loan_schedules.sequence_no")
     )
     repayments = relationship(
         "LoanRepayment", 
         back_populates="loan", 
         cascade="all, delete-orphan",
-        order_by=desc("LoanRepayment.paid_on") # <-- AJOUTÉ (en utilisant desc())
+        # On utilise desc() et text()
+        order_by=desc(text("loan_repayments.paid_on"))
     )
+    # --- FIN CORRECTION ---
 
 class LoanSchedule(Base):
     __tablename__ = "loan_schedules"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     loan_id: Mapped[int] = mapped_column(ForeignKey("loans.id"), index=True)
-    sequence_no: Mapped[int] = mapped_column(Integer, index=True)  # 1..N
+    sequence_no: Mapped[int] = mapped_column(Integer, index=True)
     due_date: Mapped[date] = mapped_column(Date, index=True)
 
     due_principal: Mapped[Decimal] = mapped_column(Numeric(12, 3))
