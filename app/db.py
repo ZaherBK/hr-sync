@@ -60,12 +60,16 @@ async def get_session():
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """
     FastAPI dependency to get an async database session.
-    Handles session creation and closing.
-    Endpoints are responsible for their own commit/rollback.
+    Handles session creation, rollback on error, and closing.
     """
     async with AsyncSessionLocal() as session:
         try:
             yield session
+            # L'endpoint est responsable du commit
+        except Exception:
+            # Rollback on any error
+            await session.rollback()
+            raise
         finally:
             # Always close the session
             await session.close()
