@@ -1213,14 +1213,14 @@ async def loan_detail_page(
     """Affiche la page de détails d'un prêt."""
     
     # --- CORRECTION ---
-    # Nous utilisons subqueryload() au lieu de selectinload()
-    # car il nous permet d'appliquer un order_by()
+    # L'ordre est maintenant géré par les modèles dans app/models.py.
+    # Nous avons juste besoin de charger les relations avec 'selectinload'.
     loan = (await db.execute(
         select(Loan)
         .options(
             selectinload(Loan.employee), 
-            subqueryload(Loan.schedules).order_by(models.LoanSchedule.sequence_no),
-            subqueryload(Loan.repayments).order_by(models.LoanRepayment.paid_on.desc())
+            selectinload(Loan.schedules),  # <-- Simplifié
+            selectinload(Loan.repayments)   # <-- Simplifié
         )
         .where(Loan.id == loan_id)
     )).scalar_one_or_none()
