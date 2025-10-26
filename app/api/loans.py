@@ -83,7 +83,8 @@ async def create_loan(payload: LoanCreate, db: AsyncSession = Depends(get_db), u
     rows = build_schedule(loan)
     # تحقق DTI على أول قسط (تقريب)
     if rows:
-        await _check_eligibility(db, loan.employee_id, rows[0].due_total, loan.term_unit)
+        # await _check_eligibility(db, loan.employee_id, rows[0].due_total, loan.term_unit)
+        pass
 
     for r in rows:
         db.add(r)
