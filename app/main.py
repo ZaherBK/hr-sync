@@ -34,6 +34,9 @@ from .audit import latest, log
 from .routers import users, branches, employees as employees_api, attendance as attendance_api, leaves as leaves_api, deposits as deposits_api
 # --- MODIFIÉ : Importer les nouvelles dépendances ---
 from .deps import get_db, web_require_permission, get_current_session_user
+# --- LOANS ---
+from app.api import loans as loans_api
+
 # --- FIN MODIFIÉ ---
 
 
@@ -48,6 +51,7 @@ app.include_router(employees_api.router)
 app.include_router(attendance_api.router)
 app.include_router(leaves_api.router)
 app.include_router(deposits_api.router)
+app.include_router(loans_api.router)
 
 
 # --- 2. Static/Templates Setup ---
