@@ -55,6 +55,7 @@ class Role(Base):
     can_manage_absences: Mapped[bool] = mapped_column(Boolean, default=False)
     can_manage_leaves: Mapped[bool] = mapped_column(Boolean, default=False)
     can_manage_deposits: Mapped[bool] = mapped_column(Boolean, default=False)
+    can_manage_loans: Mapped[bool] = mapped_column(Boolean, default=False)
 
     # Relations
     users = relationship("User", back_populates="permissions")
@@ -76,6 +77,7 @@ class Role(Base):
             "can_manage_absences": self.can_manage_absences,
             "can_manage_leaves": self.can_manage_leaves,
             "can_manage_deposits": self.can_manage_deposits,
+            "can_manage_loans": self.can_manage_loans,
         }
 # --- FIN NOUVEAU MODÈLE ---
 
