@@ -88,6 +88,8 @@ async def create_loan(payload: LoanCreate, db: AsyncSession = Depends(get_db), u
     for r in rows:
         db.add(r)
 
+    loan.schedules = rows  # <--- AJOUTEZ CETTE LIGNE
+
     # عند الموافقة مباشرةً (اختياري: تظل Draft لحين approve endpoint)
     loan.status = LoanStatus.approved
     recompute_derived(loan)
