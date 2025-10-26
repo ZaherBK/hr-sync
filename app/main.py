@@ -199,6 +199,35 @@ class CustomJSONEncoder(json.JSONEncoder):
         return super().default(obj)
 # --- FIN NOUVEAU ---
 
+# --- NOUVEAU: Helper pour convertir les dates/datetimes lors de l'import ---
+def _parse_dates(item: dict, date_fields: list[str] = [], datetime_fields: list[str] = []):
+    """Convertit les champs date/datetime string d'un dict en objets Python."""
+    for field in date_fields:
+        if field in item and item[field] and isinstance(item[field], str): # Ajout de 'item[field]' pour vérifier non-None
+            try:
+                item[field] = dt_date.fromisoformat(item[field])
+            except ValueError:
+                print(f"AVERTISSEMENT: Impossible de parser la date '{item[field]}' pour le champ '{field}'. Mise à None.")
+                item[field] = None
+    for field in datetime_fields:
+        if field in item and item[field] and isinstance(item[field], str): # Ajout de 'item[field]' pour vérifier non-None
+            try:
+                # Gérer les différents formats possibles (avec/sans T, avec/sans Z/+offset)
+                dt_str = item[field].replace('T', ' ').split('.')[0] # Enlever les millisecondes
+                dt_str = dt_str.split('+')[0].split('Z')[0].strip() # Enlever offset/Z
+                
+                # Essayer différents formats si fromisoformat échoue
+                try:
+                   item[field] = datetime.fromisoformat(dt_str)
+                except ValueError:
+                   # Tenter avec un format commun si isoformat échoue (ex: backup ancien)
+                   item[field] = datetime.strptime(dt_str, '%Y-%m-%d %H:%M:%S') 
+            except ValueError:
+                print(f"AVERTISSEMENT: Impossible de parser datetime '{item[field]}' pour le champ '{field}'. Mise à None.")
+                item[field] = None
+    return item
+# --- FIN NOUVEAU ---
+
 
 # --- 5. Routes des Pages Web (GET et POST) ---
 
@@ -339,7 +368,7 @@ async def attendance_page(
     user: dict = Depends(web_require_permission("can_manage_absences"))
 ):
     employees_query = select(Employee).where(Employee.active == True).order_by(Employee.first_name)
-    attendance_query = select(Attendance).order_by(Attendance.date.desc(), Attendance.created_at.desc())
+    attendance_query = select(Attendance).options(selectinload(Attendance.employee)).order_by(Attendance.date.desc(), Attendance.created_at.desc()) # Charger l'employé
 
     permissions = user.get("permissions", {})
     if not permissions.get("is_admin"):
@@ -401,7 +430,7 @@ async def deposits_page(
     user: dict = Depends(web_require_permission("can_manage_deposits"))
 ):
     employees_query = select(Employee).where(Employee.active == True).order_by(Employee.first_name)
-    deposits_query = select(Deposit).order_by(Deposit.date.desc(), Deposit.created_at.desc())
+    deposits_query = select(Deposit).options(selectinload(Deposit.employee)).order_by(Deposit.date.desc(), Deposit.created_at.desc()) # Charger l'employé
 
     permissions = user.get("permissions", {})
     if not permissions.get("is_admin"):
@@ -464,7 +493,7 @@ async def leaves_page(
     user: dict = Depends(web_require_permission("can_manage_leaves"))
 ):
     employees_query = select(Employee).where(Employee.active == True).order_by(Employee.first_name)
-    leaves_query = select(Leave).order_by(Leave.start_date.desc())
+    leaves_query = select(Leave).options(selectinload(Leave.employee)).order_by(Leave.start_date.desc()) # Charger l'employé
 
     permissions = user.get("permissions", {})
     if not permissions.get("is_admin"):
@@ -559,7 +588,12 @@ async def employee_report_index(
     user: dict = Depends(web_require_permission("can_view_reports")),
     employee_id: int | None = None
 ):
-    res_employees = await db.execute(select(Employee).where(Employee.active == True).order_by(Employee.first_name))
+    employees_query = select(Employee).where(Employee.active == True).order_by(Employee.first_name)
+    permissions = user.get("permissions", {})
+    if not permissions.get("is_admin"):
+        employees_query = employees_query.where(Employee.branch_id == user.get("branch_id"))
+
+    res_employees = await db.execute(employees_query)
     employees_list = res_employees.scalars().all()
 
     selected_employee = None
@@ -570,26 +604,40 @@ async def employee_report_index(
     loans = [] # Ajout des prêts au rapport
 
     if employee_id:
-        res_selected = await db.execute(select(Employee).where(Employee.id == employee_id))
-        selected_employee = res_selected.scalar_one_or_none()
+        # Vérifier si l'utilisateur a le droit de voir cet employé spécifique
+        employee_visible = False
+        if permissions.get("is_admin"):
+             employee_visible = True
+        else:
+             for emp in employees_list: # Vérifier dans la liste filtrée
+                 if emp.id == employee_id:
+                     employee_visible = True
+                     break
         
-        if selected_employee:
-            res_pay = await db.execute(select(Pay).where(Pay.employee_id == employee_id).order_by(Pay.date.desc()))
-            pay_history = res_pay.scalars().all()
-            res_dep = await db.execute(select(Deposit).where(Deposit.employee_id == employee_id).order_by(Deposit.date.desc()))
-            deposits = res_dep.scalars().all()
-            res_abs = await db.execute(select(Attendance).where(Attendance.employee_id == employee_id).order_by(Attendance.date.desc()))
-            absences = res_abs.scalars().all()
-            res_lea = await db.execute(select(Leave).where(Leave.employee_id == employee_id).order_by(Leave.start_date.desc()))
-            leaves = res_lea.scalars().all()
-            res_loans = await db.execute(select(Loan).where(Loan.employee_id == employee_id).order_by(Loan.start_date.desc()))
-            loans = res_loans.scalars().all()
+        if employee_visible:
+            res_selected = await db.execute(select(Employee).where(Employee.id == employee_id))
+            selected_employee = res_selected.scalar_one_or_none()
+            
+            if selected_employee:
+                res_pay = await db.execute(select(Pay).where(Pay.employee_id == employee_id).order_by(Pay.date.desc()))
+                pay_history = res_pay.scalars().all()
+                res_dep = await db.execute(select(Deposit).where(Deposit.employee_id == employee_id).order_by(Deposit.date.desc()))
+                deposits = res_dep.scalars().all()
+                res_abs = await db.execute(select(Attendance).where(Attendance.employee_id == employee_id).order_by(Attendance.date.desc()))
+                absences = res_abs.scalars().all()
+                res_lea = await db.execute(select(Leave).where(Leave.employee_id == employee_id).order_by(Leave.start_date.desc()))
+                leaves = res_lea.scalars().all()
+                res_loans = await db.execute(select(Loan).where(Loan.employee_id == employee_id).order_by(Loan.start_date.desc()))
+                loans = res_loans.scalars().all()
+        else:
+             employee_id = None # Ne pas montrer les données si pas autorisé
 
     context = {
         "request": request, "user": user, "app_name": APP_NAME,
         "employees": employees_list, "selected_employee": selected_employee,
         "pay_history": pay_history, "deposits": deposits,
-        "absences": absences, "leaves": leaves, "loans": loans
+        "absences": absences, "leaves": leaves, "loans": loans,
+        "current_employee_id": employee_id # Passer l'ID pour le selecteur
     }
     return templates.TemplateResponse("employee_report.html", context)
 
@@ -946,7 +994,8 @@ async def settings_page(
         db,
         user_is_admin=permissions.get("is_admin", False),
         branch_id=user.get("branch_id"),
-        entity_types=["leave", "attendance", "deposit", "pay"]
+        # --- FIX: Inclure 'loan' dans les types d'entités pour le log ---
+        entity_types=["leave", "attendance", "deposit", "pay", "loan"] 
     )
 
     context = {
@@ -966,11 +1015,15 @@ async def clear_transaction_logs(
     print(f"ACTION ADMIN (user {user['id']}): Nettoyage des journaux...")
 
     try:
+        # Supprimer dans l'ordre inverse des dépendances pour éviter les erreurs de contrainte
         await db.execute(delete(AuditLog))
-        await db.execute(delete(Attendance))
-        await db.execute(delete(Leave))
-        await db.execute(delete(Deposit))
+        await db.execute(delete(LoanRepayment))
+        await db.execute(delete(LoanSchedule))
+        await db.execute(delete(Loan))
         await db.execute(delete(Pay))
+        await db.execute(delete(Deposit))
+        await db.execute(delete(Leave))
+        await db.execute(delete(Attendance))
         
         await db.commit()
         print("✅ Nettoyage des journaux terminé avec succès.")
@@ -1054,7 +1107,7 @@ async def import_data(
         data = json.loads(contents.decode("utf-8"))
 
         # --- DANGER : SUPPRESSION DES DONNÉES ---
-        # Supprimer dans l'ordre inverse des dépendances
+        # (Suppression code inchangé)
         await db.execute(delete(AuditLog))
         await db.execute(delete(LoanRepayment))
         await db.execute(delete(LoanSchedule))
@@ -1066,63 +1119,62 @@ async def import_data(
         await db.execute(delete(Employee))
         await db.execute(delete(User))
         await db.execute(delete(Branch))
-        # Ne pas supprimer les Rôles, car ils sont fondamentaux
         
         # --- RÉINSERTION DES DONNÉES ---
-        # (Note : ceci ne gère pas les conflits d'ID, suppose une base vide)
         
         if "branches" in data:
             for item in data["branches"]:
+                item = _parse_dates(item, datetime_fields=['created_at'])
                 db.add(Branch(**item))
-        await db.flush() # Pour que les ID de Branch soient dispo
+        await db.flush()
 
-        # --- FIX: Gérer le mot de passe manquant ---
         if "users" in data:
-            # Créer un mot de passe par défaut pour tous les utilisateurs importés.
-            # Ils devront utiliser "password123" pour se connecter.
             default_hashed_password = hash_password("password123")
-
             for user_data in data["users"]:
-                
-                # Le fichier JSON n'a pas de 'hashed_password' car il a été exporté sans.
-                # Nous devons l'ajouter manuellement.
                 user_data['hashed_password'] = default_hashed_password
-                
-                # Maintenant, nous pouvons créer l'utilisateur
+                user_data = _parse_dates(user_data, datetime_fields=['created_at'])
                 db.add(User(**user_data))
-        # --- FIN DU FIX ---
         
         if "employees" in data:
             for item in data["employees"]:
+                item = _parse_dates(item, datetime_fields=['created_at'])
                 db.add(Employee(**item))
-        
-        await db.flush() # IDs d'employé dispo
+        await db.flush() 
 
+        # --- FIX: Appliquer le parseur de dates aux autres modèles ---
         if "attendance" in data:
             for item in data["attendance"]:
+                item = _parse_dates(item, date_fields=['date'], datetime_fields=['created_at'])
                 db.add(Attendance(**item))
         if "leaves" in data:
             for item in data["leaves"]:
+                item = _parse_dates(item, date_fields=['start_date', 'end_date'], datetime_fields=['created_at'])
                 db.add(Leave(**item))
         if "deposits" in data:
             for item in data["deposits"]:
+                item = _parse_dates(item, date_fields=['date'], datetime_fields=['created_at'])
                 db.add(Deposit(**item))
         if "pay_history" in data:
             for item in data["pay_history"]:
+                item = _parse_dates(item, date_fields=['date'], datetime_fields=['created_at'])
                 db.add(Pay(**item))
         
         if "loans" in data:
             for item in data["loans"]:
+                item = _parse_dates(item, date_fields=['start_date'], datetime_fields=['created_at'])
                 db.add(Loan(**item))
-        await db.flush() # IDs de prêt dispo
+        await db.flush() 
         
         if "loan_schedules" in data:
             for item in data["loan_schedules"]:
+                item = _parse_dates(item, date_fields=['due_date'], datetime_fields=['created_at'])
                 db.add(LoanSchedule(**item))
         
         if "loan_repayments" in data:
             for item in data["loan_repayments"]:
+                item = _parse_dates(item, date_fields=['paid_on'], datetime_fields=['created_at'])
                 db.add(LoanRepayment(**item))
+        # --- FIN DU FIX ---
 
         await db.commit()
         
@@ -1140,12 +1192,18 @@ async def import_data(
 
 @app.get("/loans", name="loans_page")
 async def loans_page(request: Request, db: AsyncSession = Depends(get_db), user: dict = Depends(web_require_permission("can_manage_loans"))):
-    employees = (await db.execute(select(Employee).where(Employee.active==True).order_by(Employee.first_name))).scalars().all()
+    employees_query = select(Employee).where(Employee.active==True).order_by(Employee.first_name)
+    permissions = user.get("permissions", {})
+    if not permissions.get("is_admin"):
+        employees_query = employees_query.where(Employee.branch_id == user.get("branch_id"))
+
+    employees = (await db.execute(employees_query)).scalars().all()
     
-    loans = (await db.execute(
-        select(Loan).options(selectinload(Loan.employee))
-        .order_by(Loan.created_at.desc()).limit(200)
-    )).scalars().all()
+    loans_query = select(Loan).options(selectinload(Loan.employee)).order_by(Loan.created_at.desc())
+    if not permissions.get("is_admin"):
+        loans_query = loans_query.join(Employee).where(Employee.branch_id == user.get("branch_id"))
+
+    loans = (await db.execute(loans_query.limit(200))).scalars().all()
     
     return templates.TemplateResponse("loans.html", {"request": request, "user": user, "app_name": APP_NAME, "employees": employees, "loans": loans})
 
@@ -1164,20 +1222,36 @@ async def loans_create_web(
     db: AsyncSession = Depends(get_db),
     user: dict = Depends(web_require_permission("can_manage_loans")),
 ):
+    # Vérifier l'autorisation de gérer l'employé
+    res_emp = await db.execute(select(Employee).where(Employee.id == employee_id))
+    employee = res_emp.scalar_one_or_none()
+    if not employee:
+         return RedirectResponse(request.url_for("loans_page"), status_code=status.HTTP_302_FOUND)
+    
+    permissions = user.get("permissions", {})
+    if not permissions.get("is_admin") and user.get("branch_id") != employee.branch_id:
+        return RedirectResponse(request.url_for("loans_page"), status_code=status.HTTP_302_FOUND)
+
+
     payload = LoanCreate(
         employee_id=employee_id, principal=principal, interest_type="none", 
         annual_interest_rate=None, term_count=term_count, term_unit=term_unit,
         start_date=start_date, first_due_date=first_due_date, fee=None
-        # Note: Le payload de l'API n'a pas de champ 'notes'
     )
-    from app.api.loans import create_loan
+    from app.api.loans import create_loan # Import local pour éviter dépendance cyclique potentielle
     
-    # --- FIX: L'API create_loan ne gère pas 'notes', l'ajouter manuellement ---
-    new_loan = await create_loan(payload, db, user)
+    # L'API create_loan gère l'ajout à la DB et le commit initial
+    new_loan = await create_loan(payload, db, user) # L'API crée aussi le log d'audit
+    
+    # Ajouter la note manuellement après la création
     if new_loan and notes:
-        new_loan.notes = notes
-        await db.commit()
-    # --- FIN DU FIX ---
+        try:
+            new_loan.notes = notes
+            await db.commit() # Commit juste pour la note
+        except Exception as e:
+            await db.rollback()
+            print(f"Erreur lors de l'ajout de la note au prêt: {e}")
+            # Gérer l'erreur si nécessaire
     
     return RedirectResponse(request.url_for("loans_page"), status_code=status.HTTP_302_FOUND)
 
@@ -1191,18 +1265,17 @@ async def loan_detail_page(
 ):
     """Affiche la page de détails d'un prêt."""
     
-    # --- CORRECTION ---
-    # Le tri est maintenant géré par les modèles (app/models.py).
-    # Nous avons juste besoin de charger les relations avec 'selectinload'.
-    loan = (await db.execute(
-        select(Loan)
-        .options(
+    loan_query = select(Loan).options(
             selectinload(Loan.employee), 
-            selectinload(Loan.schedules),  # Simplifié
-            selectinload(Loan.repayments)   # Simplifié
-        )
-        .where(Loan.id == loan_id)
-    )).scalar_one_or_none()
+            selectinload(Loan.schedules), 
+            selectinload(Loan.repayments) 
+        ).where(Loan.id == loan_id)
+        
+    permissions = user.get("permissions", {})
+    if not permissions.get("is_admin"):
+        loan_query = loan_query.join(Employee).where(Employee.branch_id == user.get("branch_id"))
+
+    loan = (await db.execute(loan_query)).scalar_one_or_none()
 
     if not loan:
         return RedirectResponse(request.url_for("loans_page"), status_code=status.HTTP_302_FOUND)
@@ -1230,23 +1303,30 @@ async def loan_delete_web(
 ):
     """Supprime un prêt, ses échéances et ses remboursements."""
     
-    loan = (await db.execute(
-        select(Loan).options(selectinload(Loan.employee)).where(Loan.id == loan_id)
-    )).scalar_one_or_none()
+    # Vérifier si l'utilisateur a le droit de voir/supprimer ce prêt
+    loan_query = select(Loan).options(selectinload(Loan.employee)).where(Loan.id == loan_id)
+    permissions = user.get("permissions", {})
+    if not permissions.get("is_admin"):
+        loan_query = loan_query.join(Employee).where(Employee.branch_id == user.get("branch_id"))
+        
+    loan = (await db.execute(loan_query)).scalar_one_or_none()
 
     if loan:
         try:
+            employee_id_log = loan.employee_id # Sauvegarder avant suppression
+            branch_id_log = loan.employee.branch_id # Sauvegarder avant suppression
             # La suppression en cascade est gérée par app/models.py
             await db.delete(loan)
             await db.commit()
             
             await log(
                 db, user['id'], "delete", "loan", loan_id,
-                loan.employee.branch_id, f"Prêt supprimé pour l'employé ID={loan.employee_id}"
+                branch_id_log, f"Prêt supprimé pour l'employé ID={employee_id_log}"
             )
+            await db.commit() # Commit du log
         except Exception as e:
             await db.rollback()
-            print(f"Erreur lors de la suppression du prêt: {e}")
+            print(f"Erreur lors de la suppression du prêt {loan_id}: {e}")
 
     return RedirectResponse(request.url_for("loans_page"), status_code=status.HTTP_302_FOUND)
 # --- FIN NOUVEAU ---
@@ -1263,16 +1343,32 @@ async def loan_repay_web(
 ):
     """Traite le formulaire de remboursement depuis la page web."""
 
+    # Vérifier l'autorisation avant de traiter le remboursement
+    loan_check_query = select(Loan).options(selectinload(Loan.employee)).where(Loan.id == loan_id)
+    permissions = user.get("permissions", {})
+    if not permissions.get("is_admin"):
+         loan_check_query = loan_check_query.join(Employee).where(Employee.branch_id == user.get("branch_id"))
+    
+    loan_exists = (await db.execute(loan_check_query)).scalar_one_or_none()
+    if not loan_exists:
+        # L'utilisateur n'a pas accès à ce prêt ou il n'existe pas
+         return RedirectResponse(request.url_for("loans_page"), status_code=status.HTTP_302_FOUND)
+
     payload = schemas.RepaymentCreate(
         amount=amount, paid_on=paid_on, source="cash", 
         notes=notes, schedule_id=None 
     )
     
     try:
-        # L'API (repay) gère déjà la logique de paiement flexible/partiel
+        # L'API (repay) gère déjà la logique de paiement flexible/partiel et le log d'audit
         await loans_api.repay(loan_id=loan_id, payload=payload, db=db, user=user)
     except HTTPException as e:
-        print(f"Erreur lors du remboursement: {e.detail}")
+        print(f"Erreur HTTP lors du remboursement web pour prêt {loan_id}: {e.detail}")
+        # Ajouter potentiellement un message flash ici
+    except Exception as e:
+         print(f"Erreur générale lors du remboursement web pour prêt {loan_id}: {e}")
+         await db.rollback() # S'assurer que la session est propre en cas d'erreur inattendue
+         # Ajouter potentiellement un message flash ici
     
     return RedirectResponse(
         request.url_for("loan_detail_page", loan_id=loan_id), 
