@@ -264,7 +264,42 @@ async def login_page(request: Request, db: AsyncSession = Depends(get_db)):
     users = res.scalars().all()
     return templates.TemplateResponse("login.html", {"request": request, "app_name": APP_NAME, "users": users})
 
+# 
+# 
+# --- V ADD THIS NEW FUNCTION ---
+# 
+# 
+@app.get("/loan/{loan_id}", response_class=HTMLResponse, name="loan_detail_page")
+async def loan_detail_page(
+    request: Request,
+    loan_id: int,
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(web_require_permission("can_manage_loans"))
+):
+    """Affiche la page de détails d'un prêt."""
+    
+    # Récupérer le prêt avec l'employé (similaire à l'API)
+    loan = (await db.execute(
+        select(Loan)
+        .options(selectinload(Loan.employee)) # Pré-charger l'employé
+        .where(Loan.id == loan_id)
+    )).scalar_one_or_none()
 
+    if not loan:
+        # Si le prêt n'existe pas, rediriger vers la liste
+        return RedirectResponse(request.url_for("loans_page"), status_code=status.HTTP_302_FOUND)
+        
+    # Vous devrez créer ce fichier template "loan_detail.html"
+    return templates.TemplateResponse(
+        "loan_detail.html", 
+        {
+            "request": request, 
+            "user": user, 
+            "app_name": APP_NAME, 
+            "loan": loan 
+        }
+    )
+# --- ^ ADD THIS NEW FUNCTION ^ ---
 
 @app.post("/login", name="login_action")
 async def login_action(
