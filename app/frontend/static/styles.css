@@ -354,7 +354,7 @@ select option, .form-select option{
 select option[disabled]{ color:var(--muted); }
 
 /* Employee details contrast */
-.employee-details p{ color:#e9efff; }
+.employee-details p{ color:#e9efff; margin-bottom: .6rem; } /* Added margin */
 .employee-details strong{ color:#cfd9ff; }
 
 /* ---------- Tables ---------- */
@@ -598,3 +598,4 @@ td.amount{ font-weight:800; }
   box-shadow: inset 0 0 0 1px rgba(255,255,255,.08);
 }
 .theme-toggle:hover{ transform: translateY(-1px); box-shadow: var(--shadow-1); }
+
