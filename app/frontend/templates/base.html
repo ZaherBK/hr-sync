@@ -110,8 +110,9 @@
               {% endif %}
               {% if user.permissions.is_admin or user.permissions.can_manage_loans %}
               <li class="nav-item">
+                <!-- FIX: Changed icon from data-feather to Font Awesome to match theme -->
                 <a class="nav-link {% if request.url.path == url_for('loans_page') %}active{% endif %}" href="{{ url_for('loans_page') }}">
-                  <span data-feather="dollar-sign"></span>
+                  <i class="fa-solid fa-hand-holding-dollar" style="width: 20px; text-align: center; font-size: 1.1rem;"></i>
                   Gérer les Prêts
                 </a>
               </li>
@@ -167,14 +168,21 @@
       const mode = html.getAttribute('data-theme');
       if(btn){
         btn.innerHTML = mode === 'aurora'
-          ? '<i class="bi bi-brightness-high-fill"></i>'  // يظهر شمس = اضغط لتصبح Light؟
-          : '<i class="bi bi-moon-stars-fill"></i>';       // يظهر قمر
+          ? '<i class="bi bi-brightness-high-fill"></i>'  // Mode sombre actif, montre le soleil
+          : '<i class="bi bi-moon-stars-fill"></i>';       // Mode clair actif, montre la lune
       }
     };
+    // Applique le thème sauvegardé au chargement
     const saved = localStorage.getItem('theme');
-    if(saved){ html.setAttribute('data-theme', saved); }
-    setIcon();
+    if(saved){ 
+      html.setAttribute('data-theme', saved); 
+    } else {
+      // Si rien n'est sauvegardé, on met 'aurora' par défaut
+      html.setAttribute('data-theme', 'aurora');
+    }
+    setIcon(); // Met à jour l'icône
 
+    // Gère le clic sur le bouton
     btn?.addEventListener('click', () => {
       const next = html.getAttribute('data-theme') === 'aurora' ? 'light' : 'aurora';
       html.setAttribute('data-theme', next);
