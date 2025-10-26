@@ -20,7 +20,7 @@ from . import models, schemas
 
 # --- CORRIGÉ : Import de get_db depuis .deps ---
 from .db import engine, Base, AsyncSessionLocal
-from .auth import authenticate_user, create_access_token, hash_password, ACCESS_TOKEN_EXPIRE_MINUTES, api_require_permission
+from .auth import authenticate_user, create_access_token, hash_password, ACCESS_TOKEN_EXPIRE_MINUTES, api_require_permission, get_db, web_require_permission, get_current_session_user
 # --- FIN CORRIGÉ ---
 
 # Importer TOUS les modèles nécessaires
@@ -36,7 +36,6 @@ from .routers import users, branches, employees as employees_api, attendance as 
 from .deps import get_db, web_require_permission, get_current_session_user
 # --- LOANS ---
 from app.api import loans as loans_api
-from app.auth import web_require_permission
 from app.models import Employee, Loan
 from app.schemas import LoanCreate
 from app.services.loan_calc import build_schedule, recompute_derived
