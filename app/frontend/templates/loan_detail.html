@@ -29,6 +29,7 @@
                     </span>
                 </p>
                 <p><strong>Date de début:</strong> <span class="timestamp">{{ loan.start_date }}</span></p>
+                <p><strong>Note:</strong> <span class="details">{{ loan.notes or 'N/A' }}</span></p>
                 <!-- Termes supprimés car non pertinents -->
                 <hr style="border-color: var(--border);">
                 <!-- FIX: Remplacé 'loan.due_total' par 'loan.principal' -->
@@ -42,7 +43,7 @@
         </div>
 
         <!-- Carte de remboursement (si le prêt est actif) -->
-        {% if loan.status.value == 'active' %}
+        {% if loan.status.value == 'active' or loan.status.value == 'approved' or loan.status.value == 'approuvé' %}
         <div class="card form-card">
             <h3><i class="fa-solid fa-hand-holding-dollar"></i> Effectuer un Remboursement</h3>
             <form action="{{ url_for('loan_repay_web', loan_id=loan.id) }}" method="POST" style="margin-top: 1rem;">
