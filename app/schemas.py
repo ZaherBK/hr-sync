@@ -2,7 +2,7 @@
 Modèles Pydantic (schémas) pour la validation des requêtes et réponses.
 """
 from datetime import date, datetime
-from typing import List, Optional
+from typing import List, Optional, Literal
 from decimal import Decimal
 
 from pydantic import BaseModel, EmailStr, Field, field_validator, ConfigDict
