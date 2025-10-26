@@ -1,111 +1,54 @@
 {% extends "base.html" %}
-
-{% block title %}{{ app_name }} - Gestion des Prêts{% endblock %}
-
 {% block content %}
-<div class="container mt-4">
-    <h2>Gestion des Prêts</h2>
+<h2 class="page-title"><i class="fa-solid fa-hand-holding-dollar"></i> Prêts</h2>
 
-    <!-- Formulaire de création de prêt -->
-    <div class="card shadow-sm mb-4">
-        <div class="card-header">
-            <h5 class="mb-0">Ajouter un nouveau prêt (Avance)</h5>
-        </div>
-        <div class="card-body">
-            <form action="{{ url_for('loans_create_web') }}" method="POST">
-                <div class="row g-3">
-                    <div class="col-md-4">
-                        <label for="employee_id" class="form-label">Employé</label>
-                        <select class="form-select" id="employee_id" name="employee_id" required>
-                            <option value="" disabled selected>Choisir un employé...</option>
-                            {% for e in employees %}
-                            <option value="{{ e.id }}">{{ e.first_name }} {{ e.last_name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <label for="principal" class="form-label">Montant (TND)</label>
-                        <input type="number" step="0.01" class="form-control" id="principal" name="principal" required>
-                    </div>
-                    <div class="col-md-3">
-                        <label for="term_count" class="form-label">Nombre de Termes</label>
-                        <input type="number" class="form-control" id="term_count" name="term_count" value="1" required>
-                    </div>
-                     <div class="col-md-2 align-self-end">
-                        <button type="submit" class="btn btn-primary w-100">
-                            <i class="fas fa-plus"></i> Créer
-                        </button>
-                    </div>
-                </div>
-            </form>
-        </div>
+<div class="card form-card">
+  <!-- FIX: Retrait de la classe 'form-grid' pour que les 'form-group' s'empilent verticalement -->
+  <form method="post" action="{{ url_for('loans_create_web') }}">
+    <div class="form-row">
+      <div class="form-group full-width">
+        <label>Employé</label>
+        <select name="employee_id" class="form-select" required>
+          {% for e in employees %}<option value="{{e.id}}">{{e.first_name}} {{e.last_name}}</option>{% endfor %}
+        </select>
+      </div>
+        <div class="form-group"><label>Montant (Crédit)</label><input type="number" step="0.01" name="principal" class="form-control" required></div>
+        <div class="form-group"><label>Nbr. de Termes</label><input type="number" name="term_count" class="form-control" value="1" required></div>
+        <div class="form-group"><label>Fréquence</label>
+        <select name="term_unit" class="form-select"><option value="month">Mensuel</option><option value="week">Hebdo</option></select>
+      </div>
+        <div class="form-group"><label>Date de Début</label><input type="date" name="start_date" class="form-control" required></div>
+      <div class="form-group full-width"><label>1ère Échéance (Facultatif)</label><input type="date" name="first_due_date" class="form-control"></div>
     </div>
-
-    <!-- Tableau des prêts existants -->
-    <div class="card shadow-sm">
-        <div class="card-header">
-            <h5 class="mb-0">Prêts Actuels</h5>
-        </div>
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-striped table-hover align-middle">
-                    <thead>
-                        <tr>
-                            <th>Employé</th>
-                            <th>Montant</th>
-                            <th>Remboursé</th>
-                            <th>Solde</th>
-                            <th>Statut</th>
-                            <th>Date</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for l in loans %}
-                        <tr>
-                            <td>
-                                {% if l.employee %}
-                                    {{ l.employee.first_name }} {{ l.employee.last_name }}
-                                {% else %}
-                                    <span class="text-muted">Employé Supprimé</span>
-                                {% endif %}
-                            </td>
-                            <td>{{ "%.2f"|format(l.scheduled_total) }}</td>
-                            <td>{{ "%.2f"|format(l.repaid_total) }}</td>
-                            <td><strong>{{ "%.2f"|format(l.scheduled_total - l.repaid_total) }}</strong></td>
-                            <td>
-                                <span class="badge 
-                                    {% if l.status.value == 'draft' %}bg-secondary
-                                    {% elif l.status.value == 'active' %}bg-success
-                                    {% elif l.status.value == 'paid' %}bg-info
-                                    {% else %}bg-primary{% endif %}">
-                                    {{ l.status.value }}
-                                </span>
-                            </td>
-                            <td>{{ l.start_date }}</td>
-                            <td>
-                                <a class="btn btn-sm btn-primary" href="{{ url_for('loan_detail_page', loan_id=l.id) }}">
-                                    <i class="fas fa-eye"></i> Détails
-                                </a>
-                                
-                                <!-- NOUVEAU : Bouton Supprimer -->
-                                <form action="{{ url_for('loan_delete_web', loan_id=l.id) }}" method="POST" class="d-inline"
-                                      onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer ce prêt ? Cette action est irréversible.');">
-                                    <button type="submit" class="btn btn-sm btn-danger">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                </form>
-                                <!-- FIN NOUVEAU -->
-                            </td>
-                        </tr>
-                        {% else %}
-                        <tr>
-                            <td colspan="7" class="text-center">Aucun prêt trouvé.</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
+    
+    <div class="form-actions" style="margin-top: 1rem;"><button class="btn btn-primary">Créer Crédit</button></div>
+  </form>
 </div>
+
+<div class="card table-card">
+  <div class="table-responsive">
+    <table>
+      <thead><tr><th>#</th><th>Employé</th><th>Montant</th><th>Statut</th><th>Prochain Échéance</th><th>Actions</th></tr></thead>
+      <tbody>
+        {% for l in loans %}
+        <tr>
+          <td>{{ l.id }}</td>
+          <td class="details">{{ l.employee.first_name }} {{ l.employee.last_name }}</td>
+          <td class="amount">{{ '%.2f'|format(l.principal) }} TND</td>
+          <td>
+            <span class="badge 
+              {% if l.status == 'active' %}action-create
+              {% elif l.status == 'paid' %}action-approve
+              {% else %}status-inactive{% endif %}">
+              {{ l.status }}
+            </span>
+          </td>
+          <td class="timestamp">{{ l.next_due_on or '-' }}</td>
+          <td><a class="btn btn-secondary" href="{{ url_for('loan_detail_page', loan_id=l.id) }}">Détails</a></td>
+        </tr>
+        {% else %}<tr><td colspan="6" class="no-data">Aucun prêt.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
