@@ -269,6 +269,7 @@ async def login_page(request: Request, db: AsyncSession = Depends(get_db)):
 # --- V ADD THIS NEW FUNCTION ---
 # 
 # 
+# (Modifiée pour charger 'schedules' et 'repayments')
 @app.get("/loan/{loan_id}", response_class=HTMLResponse, name="loan_detail_page")
 async def loan_detail_page(
     request: Request,
@@ -278,36 +279,34 @@ async def loan_detail_page(
 ):
     """Affiche la page de détails d'un prêt."""
     
-    # Récupérer le prêt avec l'employé (similaire à l'API)
+    # Mettre à jour la requête pour pré-charger les échéances (schedules) 
+    # et les remboursements (repayments)
     loan = (await db.execute(
         select(Loan)
-        .options(selectinload(Loan.employee)) # Pré-charger l'employé
+        .options(
+            selectinload(Loan.employee), 
+            selectinload(Loan.schedules).order_by(models.LoanSchedule.sequence_no), # <-- AJOUTÉ
+            selectinload(Loan.repayments).order_by(models.LoanRepayment.paid_on.desc()) # <-- AJOUTÉ
+        )
         .where(Loan.id == loan_id)
     )).scalar_one_or_none()
 
     if not loan:
-        # Si le prêt n'existe pas, rediriger vers la liste
         return RedirectResponse(request.url_for("loans_page"), status_code=status.HTTP_302_FOUND)
         
-    # Vous devrez créer ce fichier template "loan_detail.html"
+    # Nous avons besoin de la date d'aujourd'hui pour le formulaire
+    today_date = dt_date.today().isoformat()
+
     return templates.TemplateResponse(
         "loan_detail.html", 
         {
             "request": request, 
             "user": user, 
             "app_name": APP_NAME, 
-            "loan": loan 
+            "loan": loan,
+            "today_date": today_date # <-- AJOUTÉ
         }
     )
-# --- ^ ADD THIS NEW FUNCTION ^ ---
-
-@app.post("/login", name="login_action")
-async def login_action(
-    request: Request, 
-    username: str = Form(...), 
-    password: str = Form(...),
-    db: AsyncSession = Depends(get_db) 
-):
     """Traite la soumission du formulaire de connexion."""
     
     # --- MODIFIÉ : authenticate_user charge maintenant le rôle (défini dans auth.py) ---
@@ -471,6 +470,41 @@ async def attendance_page(
     }
     return templates.TemplateResponse("attendance.html", context)
 
+# (Ajoutez cette nouvelle fonction pour gérer le formulaire de remboursement)
+@app.post("/loan/{loan_id}/repay", name="loan_repay_web")
+async def loan_repay_web(
+    request: Request,
+    loan_id: int,
+    amount: Annotated[Decimal, Form()],
+    paid_on: Annotated[dt_date, Form()],
+    notes: Annotated[str, Form()] = None,
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(web_require_permission("can_manage_loans"))
+):
+    """Traite le formulaire de remboursement depuis la page web."""
+
+    # Créer le payload pour l'API
+    payload = schemas.RepaymentCreate(
+        amount=amount,
+        paid_on=paid_on,
+        source="cash", # Source par défaut pour le formulaire web
+        notes=notes,
+        schedule_id=None # L'API trouvera la prochaine échéance
+    )
+    
+    try:
+        # Appeler la fonction API existante pour faire le travail
+        await loans_api.repay(loan_id=loan_id, payload=payload, db=db, user=user)
+    except HTTPException as e:
+        # Gérer les erreurs (ex: "Rien à payer")
+        # Idéalement, vous ajouteriez un message flash ici
+        print(f"Erreur lors du remboursement: {e.detail}")
+    
+    # Rediriger vers la page de détails
+    return RedirectResponse(
+        request.url_for("loan_detail_page", loan_id=loan_id), 
+        status_code=status.HTTP_302_FOUND
+    )
 
 @app.post("/attendance/create", name="attendance_create")
 async def attendance_create(
