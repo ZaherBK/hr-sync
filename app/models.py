@@ -17,6 +17,7 @@ from sqlalchemy import (
     Text,
     func,
     Numeric, # Pour les montants
+    desc,  # <--- 1. AJOUTEZ 'desc' ICI
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -249,10 +250,10 @@ class Loan(Base):
     __tablename__ = "loans"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     employee_id: Mapped[int] = mapped_column(ForeignKey("employees.id"), index=True)
-    principal: Mapped[Decimal] = mapped_column(Numeric(12, 3))  # داخل النظام 3 منازل
+    principal: Mapped[Decimal] = mapped_column(Numeric(12, 3))
     interest_type: Mapped[LoanInterestType] = mapped_column(Enum(LoanInterestType))
     annual_interest_rate: Mapped[Decimal | None] = mapped_column(Numeric(7, 4), nullable=True)
-    term_count: Mapped[int] = mapped_column(Integer)            # عدد الأقساط
+    term_count: Mapped[int] = mapped_column(Integer)
     term_unit: Mapped[LoanTermUnit] = mapped_column(Enum(LoanTermUnit))
     start_date: Mapped[date] = mapped_column(Date)
     first_due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
@@ -269,10 +270,20 @@ class Loan(Base):
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    # علاقات
+    # --- 2. MODIFIEZ LES RELATIONS ICI ---
     employee = relationship("Employee")
-    schedules = relationship("LoanSchedule", back_populates="loan", cascade="all, delete-orphan")
-    repayments = relationship("LoanRepayment", back_populates="loan", cascade="all, delete-orphan")
+    schedules = relationship(
+        "LoanSchedule", 
+        back_populates="loan", 
+        cascade="all, delete-orphan",
+        order_by="LoanSchedule.sequence_no"  # <-- AJOUTÉ
+    )
+    repayments = relationship(
+        "LoanRepayment", 
+        back_populates="loan", 
+        cascade="all, delete-orphan",
+        order_by=desc("LoanRepayment.paid_on") # <-- AJOUTÉ (en utilisant desc())
+    )
 
 class LoanSchedule(Base):
     __tablename__ = "loan_schedules"
