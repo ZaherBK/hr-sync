@@ -1170,20 +1170,24 @@ async def loans_create_web(
     request: Request,
     employee_id: Annotated[int, Form()],
     principal: Annotated[Decimal, Form()],
-    interest_type: Annotated[str, Form()],
-    annual_interest_rate: Annotated[Decimal | None, Form()] = None,
+    # Les champs 'interest_type', 'annual_interest_rate', et 'fee' sont supprimés d'ici
     term_count: Annotated[int, Form()] = 1,
     term_unit: Annotated[str, Form()] = "month",
     start_date: Annotated[dt_date, Form()] = dt_date.today(),
     first_due_date: Annotated[dt_date | None, Form()] = None,
-    fee: Annotated[Decimal | None, Form()] = None,
     db: AsyncSession = Depends(get_db),
     user: dict = Depends(web_require_permission("can_manage_loans")),
 ):
     payload = LoanCreate(
-        employee_id=employee_id, principal=principal, interest_type=interest_type,
-        annual_interest_rate=annual_interest_rate, term_count=term_count, term_unit=term_unit,
-        start_date=start_date, first_due_date=first_due_date, fee=fee
+        employee_id=employee_id, 
+        principal=principal, 
+        interest_type="none",  # <-- Forcé à "sans intérêt"
+        annual_interest_rate=None, # <-- Forcé à Nul
+        term_count=term_count, 
+        term_unit=term_unit,
+        start_date=start_date, 
+        first_due_date=first_due_date, 
+        fee=None # <-- Forcé à Nul
     )
     # Reuse API path
     from app.api.loans import create_loan
