@@ -108,9 +108,9 @@
                 </a>
               </li>
               {% endif %}
-              {% if user.permissions.can_manage_loans %}
+              {% if user.permissions.is_admin or user.permissions.can_manage_loans %}
               <li class="nav-item">
-                <a class="nav-link" href="{{ url_for('loans_page') }}">
+                <a class="nav-link {% if request.url.path == url_for('loans_page') %}active{% endif %}" href="{{ url_for('loans_page') }}">
                   <span data-feather="dollar-sign"></span>
                   Gérer les Prêts
                 </a>
