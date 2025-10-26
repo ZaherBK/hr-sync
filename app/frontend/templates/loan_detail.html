@@ -2,8 +2,6 @@
 
 {% block content %}
 
-<!-- FIX: Application de la mise en page et du thème corrects -->
-
 <div class="d-flex justify-content-between align-items-center mb-2">
     <h2 class="page-title"><i class="fa-solid fa-file-invoice-dollar"></i> Détails du Prêt #{{ loan.id }}</h2>
     <a href="{{ url_for('loans_page') }}" class="btn btn-secondary">
@@ -31,13 +29,13 @@
                     </span>
                 </p>
                 <p><strong>Date de début:</strong> <span class="timestamp">{{ loan.start_date }}</span></p>
-                <p><strong>Termes:</strong> {{ loan.term_count }} {{ loan.term_unit.value }}(s)</p>
+                <!-- Termes supprimés car non pertinents -->
                 <hr style="border-color: var(--border);">
-                <!-- FIX: Remplacé 'loan.due_total' inexistant par 'loan.principal' -->
+                <!-- FIX: Remplacé 'loan.due_total' par 'loan.principal' -->
                 <p><strong>Total à payer:</strong> <span class="amount">{{ "%.2f"|format(loan.principal) }} TND</span></p>
                 <p><strong>Total Remboursé:</strong> <span class="amount">{{ "%.2f"|format(loan.repaid_total) }} TND</span></p>
                 <p><strong>Solde Restant:</strong> 
-                    <!-- FIX: Remplacé 'loan.due_total' inexistant par 'loan.principal' -->
+                    <!-- FIX: Remplacé 'loan.due_total' par 'loan.principal' -->
                     <strong class="amount" style="color: var(--gold); font-size: 1.1rem;">{{ "%.2f"|format(loan.principal - loan.repaid_total) }} TND</strong>
                 </p>
             </div>
@@ -50,7 +48,7 @@
             <form action="{{ url_for('loan_repay_web', loan_id=loan.id) }}" method="POST" style="margin-top: 1rem;">
                 <div class="form-group mb-3">
                     <label for="amount">Montant</label>
-                    <input type="number" step="0.01" class="form-control" id="amount" name="amount" required>
+                    <input type="number" step="0.01" class="form-control" id="amount" name="amount" placeholder="ex: 50" required>
                 </div>
                 <div class="form-group mb-3">
                     <label for="paid_on">Payé le</label>
@@ -71,54 +69,14 @@
 
     </div>
 
-    <!-- Colonne de droite: Échéancier et Historique -->
+    <!-- Colonne de droite: Historique -->
     <div class="col-lg-7">
         
-        <!-- Carte de l'échéancier -->
-        <div class="card table-card">
-            <h3><i class="fa-solid fa-list-ol"></i> Échéancier de Remboursement</h3>
-            <div class="table-responsive">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>#</th>
-                            <th>Date d'échéance</th>
-                            <th>Montant Dû</th>
-                            <th>Montant Payé</th>
-                            <th>Statut</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for s in loan.schedules %}
-                        <tr>
-                            <td>{{ s.sequence_no }}</td>
-                            <td class="timestamp">{{ s.due_date }}</td>
-                            <td class="amount">{{ "%.2f"|format(s.due_total) }}</td>
-                            <td class="amount">{{ "%.2f"|format(s.paid_total) }}</td>
-                            <td>
-                                <span class="badge 
-                                    {% if s.status.value == 'paid' %}action-create
-                                    {% elif s.status.value == 'pending' %}status-inactive
-                                    {% elif s.status.value == 'partial' %}action-leave
-                                    {% elif s.status.value == 'overdue' %}ltype-unpaid
-                                    {% else %}badge{% endif %}">
-                                    {{ s.status.value }}
-                                </span>
-                            </td>
-                        </tr>
-                        {% else %}
-                        <tr>
-                            <td colspan="5" class="no-data">Aucun échéancier trouvé.</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
+        <!-- SUPPRIMÉ: L'échéancier n'est plus nécessaire -->
 
         <!-- Carte de l'historique des transactions -->
         {% if loan.repayments %}
-        <div class="card table-card mt-4">
+        <div class="card table-card"> <!-- Retiré 'mt-4' -->
             <h3><i class="fa-solid fa-clock-rotate-left"></i> Historique des Transactions</h3>
             <div class="table-responsive">
                 <table>
@@ -140,6 +98,11 @@
                      </tbody>
                 </table>
             </div>
+        </div>
+        {% else %}
+        <div class="card table-card">
+            <h3><i class="fa-solid fa-clock-rotate-left"></i> Historique des Transactions</h3>
+            <p class="no-data" style="padding-top: 1rem;">Aucun remboursement effectué pour ce prêt.</p>
         </div>
         {% endif %}
 
