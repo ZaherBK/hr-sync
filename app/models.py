@@ -258,14 +258,14 @@ class Loan(Base):
         back_populates="loan", 
         cascade="all, delete-orphan",
         # Utilisez une chaîne "ClassName.column_name"
-        order_by="LoanSchedule.sequence_no"
+        order_by=lambda: LoanSchedule.sequence_no
     )
     repayments = relationship(
         "LoanRepayment", 
         back_populates="loan", 
         cascade="all, delete-orphan",
         # Utilisez desc() avec la chaîne "ClassName.column_name"
-        order_by=desc("LoanRepayment.paid_on")
+        order_by=lambda: LoanRepayment.paid_on.desc()
     )
     # --- FIN CORRECTION ---
 
