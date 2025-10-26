@@ -7,14 +7,14 @@ from decimal import Decimal
 from typing import Annotated, List, Optional
 import json
 
-from fastapi import Depends, FastAPI, Form, HTTPException, Request, status, APIRouter # --- AJOUTÉ APIRouter ---
+from fastapi import Depends, FastAPI, Form, HTTPException, Request, status, APIRouter
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 from sqlalchemy import select, delete, func, case, extract, or_
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload  # <--- IMPORT IMPORTANT
 from sqlalchemy.future import select
 from . import models, schemas
 
@@ -35,10 +35,8 @@ from .routers import users, branches, employees as employees_api, attendance as 
 from .deps import get_db, web_require_permission, get_current_session_user
 # --- LOANS ---
 from app.api import loans as loans_api
-from app.models import Employee, Loan
-from app.schemas import LoanCreate
-from app.services.loan_calc import build_schedule, recompute_derived
-
+from app.models import Employee, Loan, LoanSchedule, LoanRepayment # <--- Imports Loan
+from app.schemas import LoanCreate, RepaymentCreate # <--- Imports Schema
 # --- FIN MODIFIÉ ---
 
 
@@ -104,7 +102,7 @@ async def on_startup() -> None:
     print("Événement de démarrage...")
     async with engine.begin() as conn:
         print("!!! ATTENTION : Suppression de toutes les tables... !!!")
-        await conn.run_sync(Base.metadata.drop_all)      # <--- AJOUTEZ CETTE LIGNE (TEMPORAIRE)
+        # await conn.run_sync(Base.metadata.drop_all)      # <--- Commentez ou supprimez ceci après le premier test
         print("Création de toutes les tables (si elles n'existent pas)...")
         await conn.run_sync(Base.metadata.create_all)
         print("Tables OK.")
@@ -123,8 +121,6 @@ async def on_startup() -> None:
                 admin_role = Role(
                     name="Admin",
                     is_admin=True, # God Mode
-                    # Toutes les autres permissions sont inutiles si is_admin=True,
-                    # mais nous les mettons pour la clarté
                     can_manage_users=True,
                     can_manage_roles=True,
                     can_manage_branches=True,
@@ -141,13 +137,13 @@ async def on_startup() -> None:
                 manager_role = Role(
                     name="Manager",
                     is_admin=False,
-                    can_manage_users=False, # Ne peut pas gérer les utilisateurs
-                    can_manage_roles=False, # Ne peut pas gérer les rôles
-                    can_manage_branches=False, # Ne peut pas gérer les magasins
-                    can_view_settings=False, # Ne peut pas voir les paramètres
-                    can_clear_logs=False, # Ne peut pas purger les logs
-                    can_manage_employees=True, # Peut gérer ses employés
-                    can_view_reports=False, # Ne peut pas voir les rapports
+                    can_manage_users=False, 
+                    can_manage_roles=False,
+                    can_manage_branches=False,
+                    can_view_settings=False,
+                    can_clear_logs=False,
+                    can_manage_employees=True,
+                    can_view_reports=False,
                     can_manage_pay=True,
                     can_manage_absences=True,
                     can_manage_leaves=True,
@@ -264,51 +260,15 @@ async def login_page(request: Request, db: AsyncSession = Depends(get_db)):
     users = res.scalars().all()
     return templates.TemplateResponse("login.html", {"request": request, "app_name": APP_NAME, "users": users})
 
-# 
-# 
-# --- V ADD THIS NEW FUNCTION ---
-# 
-# 
-# (Modifiée pour charger 'schedules' et 'repayments')
-@app.get("/loan/{loan_id}", response_class=HTMLResponse, name="loan_detail_page")
-async def loan_detail_page(
-    request: Request,
-    loan_id: int,
-    db: AsyncSession = Depends(get_db),
-    user: dict = Depends(web_require_permission("can_manage_loans"))
+
+
+@app.post("/login", name="login_action")
+async def login_action(
+    request: Request, 
+    username: str = Form(...), 
+    password: str = Form(...),
+    db: AsyncSession = Depends(get_db) 
 ):
-    """Affiche la page de détails d'un prêt."""
-    
-    # Mettre à jour la requête pour pré-charger les échéances (schedules) 
-    # et les remboursements (repayments)
-loan = (await db.execute(
-        select(Loan)
-        .options(
-            selectinload(Loan.employee), 
-            selectinload(Loan.schedules.order_by(models.LoanSchedule.sequence_no)),
-            selectinload(Loan.repayments.order_by(models.LoanRepayment.paid_on.desc()))
-        )
-        .where(Loan.id == loan_id)
-    )).scalar_one_or_none()
-        .where(Loan.id == loan_id)
-    )).scalar_one_or_none()
-
-    if not loan:
-        return RedirectResponse(request.url_for("loans_page"), status_code=status.HTTP_302_FOUND)
-        
-    # Nous avons besoin de la date d'aujourd'hui pour le formulaire
-    today_date = dt_date.today().isoformat()
-
-    return templates.TemplateResponse(
-        "loan_detail.html", 
-        {
-            "request": request, 
-            "user": user, 
-            "app_name": APP_NAME, 
-            "loan": loan,
-            "today_date": today_date
-        }
-    )
     """Traite la soumission du formulaire de connexion."""
     
     # --- MODIFIÉ : authenticate_user charge maintenant le rôle (défini dans auth.py) ---
@@ -472,41 +432,6 @@ async def attendance_page(
     }
     return templates.TemplateResponse("attendance.html", context)
 
-# (Ajoutez cette nouvelle fonction pour gérer le formulaire de remboursement)
-@app.post("/loan/{loan_id}/repay", name="loan_repay_web")
-async def loan_repay_web(
-    request: Request,
-    loan_id: int,
-    amount: Annotated[Decimal, Form()],
-    paid_on: Annotated[dt_date, Form()],
-    notes: Annotated[str, Form()] = None,
-    db: AsyncSession = Depends(get_db),
-    user: dict = Depends(web_require_permission("can_manage_loans"))
-):
-    """Traite le formulaire de remboursement depuis la page web."""
-
-    # Créer le payload pour l'API
-    payload = schemas.RepaymentCreate(
-        amount=amount,
-        paid_on=paid_on,
-        source="cash", # Source par défaut pour le formulaire web
-        notes=notes,
-        schedule_id=None # L'API trouvera la prochaine échéance
-    )
-    
-    try:
-        # Appeler la fonction API existante pour faire le travail
-        await loans_api.repay(loan_id=loan_id, payload=payload, db=db, user=user)
-    except HTTPException as e:
-        # Gérer les erreurs (ex: "Rien à payer")
-        # Idéalement, vous ajouteriez un message flash ici
-        print(f"Erreur lors du remboursement: {e.detail}")
-    
-    # Rediriger vers la page de détails
-    return RedirectResponse(
-        request.url_for("loan_detail_page", loan_id=loan_id), 
-        status_code=status.HTTP_302_FOUND
-    )
 
 @app.post("/attendance/create", name="attendance_create")
 async def attendance_create(
@@ -1229,11 +1154,24 @@ async def clear_transaction_logs(
 
     return RedirectResponse(request.url_for('settings_page'), status_code=status.HTTP_302_FOUND)
 
-# --- LOANS SYSTEM -----
+#
+#
+# --- TOUT LE SYSTÈME DE PRÊTS (WEB) EST CORRIGÉ CI-DESSOUS ---
+#
+#
+
 @app.get("/loans", name="loans_page")
 async def loans_page(request: Request, db: AsyncSession = Depends(get_db), user: dict = Depends(web_require_permission("can_manage_loans"))):
     employees = (await db.execute(select(Employee).where(Employee.active==True).order_by(Employee.first_name))).scalars().all()
-    loans = (await db.execute(select(Loan).order_by(Loan.created_at.desc()).limit(200))).scalars().all()
+    
+    # --- CORRECTION ---
+    # (Ajout de .options(selectinload(Loan.employee)) pour éviter les erreurs dans le template)
+    loans = (await db.execute(
+        select(Loan).options(selectinload(Loan.employee))
+        .order_by(Loan.created_at.desc()).limit(200)
+    )).scalars().all()
+    # --- FIN CORRECTION ---
+    
     return templates.TemplateResponse("loans.html", {"request": request, "user": user, "app_name": APP_NAME, "employees": employees, "loans": loans})
 
 @app.post("/loans/create", name="loans_create_web")
@@ -1241,7 +1179,6 @@ async def loans_create_web(
     request: Request,
     employee_id: Annotated[int, Form()],
     principal: Annotated[Decimal, Form()],
-    # Les champs 'interest_type', 'annual_interest_rate', et 'fee' sont supprimés d'ici
     term_count: Annotated[int, Form()] = 1,
     term_unit: Annotated[str, Form()] = "month",
     start_date: Annotated[dt_date, Form()] = dt_date.today(),
@@ -1252,15 +1189,84 @@ async def loans_create_web(
     payload = LoanCreate(
         employee_id=employee_id, 
         principal=principal, 
-        interest_type="none",  # <-- Forcé à "sans intérêt"
-        annual_interest_rate=None, # <-- Forcé à Nul
+        interest_type="none", 
+        annual_interest_rate=None,
         term_count=term_count, 
         term_unit=term_unit,
         start_date=start_date, 
         first_due_date=first_due_date, 
-        fee=None # <-- Forcé à Nul
+        fee=None
     )
     # Reuse API path
     from app.api.loans import create_loan
     await create_loan(payload, db, user)
     return RedirectResponse(request.url_for("loans_page"), status_code=status.HTTP_302_FOUND)
+
+
+@app.get("/loan/{loan_id}", response_class=HTMLResponse, name="loan_detail_page")
+async def loan_detail_page(
+    request: Request,
+    loan_id: int,
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(web_require_permission("can_manage_loans"))
+):
+    """Affiche la page de détails d'un prêt."""
+    
+    # REQUÊTE CORRIGÉE AVEC INDENTATION ET SYNTAXE
+    loan = (await db.execute(
+        select(Loan)
+        .options(
+            selectinload(Loan.employee), 
+            selectinload(Loan.schedules.order_by(models.LoanSchedule.sequence_no)), # Syntaxe corrigée
+            selectinload(Loan.repayments.order_by(models.LoanRepayment.paid_on.desc())) # Syntaxe corrigée
+        )
+        .where(Loan.id == loan_id)  # <--- Indentation corrigée
+    )).scalar_one_or_none()
+
+    # Indentation corrigée
+    if not loan:
+        return RedirectResponse(request.url_for("loans_page"), status_code=status.HTTP_302_FOUND)
+        
+    today_date = dt_date.today().isoformat()
+
+    return templates.TemplateResponse(
+        "loan_detail.html", 
+        {
+            "request": request, 
+            "user": user, 
+            "app_name": APP_NAME, 
+            "loan": loan,
+            "today_date": today_date
+        }
+    )
+
+@app.post("/loan/{loan_id}/repay", name="loan_repay_web")
+async def loan_repay_web(
+    request: Request,
+    loan_id: int,
+    amount: Annotated[Decimal, Form()],
+    paid_on: Annotated[dt_date, Form()],
+    notes: Annotated[str, Form()] = None,
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(web_require_permission("can_manage_loans"))
+):
+    """Traite le formulaire de remboursement depuis la page web."""
+
+    payload = schemas.RepaymentCreate(
+        amount=amount,
+        paid_on=paid_on,
+        source="cash", 
+        notes=notes,
+        schedule_id=None 
+    )
+    
+    try:
+        # Appeler la fonction API
+        await loans_api.repay(loan_id=loan_id, payload=payload, db=db, user=user)
+    except HTTPException as e:
+        print(f"Erreur lors du remboursement: {e.detail}")
+    
+    return RedirectResponse(
+        request.url_for("loan_detail_page", loan_id=loan_id), 
+        status_code=status.HTTP_302_FOUND
+    )
