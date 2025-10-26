@@ -3,7 +3,7 @@ from decimal import Decimal
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload # <-- AJOUTÉ
+from sqlalchemy.orm import selectinload # <--- AJOUTÉ
 
 from app.deps import get_db
 from app.auth import api_require_permission
@@ -43,7 +43,8 @@ async def _check_eligibility(db: AsyncSession, employee_id: int, amount_per_term
 
 @router.get("/", response_model=list[LoanOut], dependencies=[Depends(api_require_permission("can_manage_loans"))])
 async def list_loans(status: LoanStatus | None = None, employee_id: int | None = None, db: AsyncSession = Depends(get_db)):
-    q = select(Loan).options(selectinload(Loan.employee)) # <-- AJOUTÉ .options(...) pour charger l'employé
+    # --- AJOUTÉ .options(...) pour pré-charger l'employé ---
+    q = select(Loan).options(selectinload(Loan.employee)) 
     if status:
         q = q.where(Loan.status == status)
     if employee_id:
@@ -83,7 +84,7 @@ async def create_loan(payload: LoanCreate, db: AsyncSession = Depends(get_db), u
 
     rows = build_schedule(loan)
     
-    # Check DTI (Désactivé comme vous l'avez demandé)
+    # Check DTI (Désactivé comme demandé)
     if rows and False: 
         # await _check_eligibility(db, loan.employee_id, rows[0].due_total, loan.term_unit)
         pass
@@ -95,10 +96,10 @@ async def create_loan(payload: LoanCreate, db: AsyncSession = Depends(get_db), u
     # NE PAS FAIRE CECI - CELA CAUSE LE CRASH "MissingGreenlet" / "TypeError"
     # loan.schedules = rows 
     
-    # عند الموافقة مباشرةً (اختياري: تظل Draft لحين approve endpoint)
+    # عند الموافقة مباشرةً
     loan.status = LoanStatus.approved
     
-    # Passer 'rows' en argument pour éviter le lazy-load
+    # Passer 'rows' en argument pour éviter le lazy-load et le TypeError
     recompute_derived(loan, schedules=rows)
 
     # PAS de commit ici ! get_db (de db.py) s'en occupe.
@@ -114,7 +115,6 @@ async def get_loan(loan_id: int, db: AsyncSession = Depends(get_db)):
     loan = (await db.execute(
         select(Loan).options(selectinload(Loan.employee)).where(Loan.id == loan_id)
     )).scalar_one_or_none()
-    # --- FIN AJOUT ---
     
     if not loan:
         raise HTTPException(404, "Loan not found")
@@ -173,14 +173,20 @@ async def repay(loan_id: int, payload: RepaymentCreate, db: AsyncSession = Depen
     # --- CORRECTION Division par zéro ---
     remaining_due_before_pay = (target.due_total - (target.paid_total - pay_amount))
     if remaining_due_before_pay > 0:
-        p_ratio = (target.due_principal - target.paid_principal) / remaining_due_before_pay
-        i_ratio = (target.due_interest - target.paid_interest) / remaining_due_before_pay
+        # Gérer le cas où due_principal ou paid_principal est None
+        due_principal = target.due_principal or 0
+        paid_principal = target.paid_principal or 0
+        due_interest = target.due_interest or 0
+        paid_interest = target.paid_interest or 0
+
+        p_ratio = (due_principal - paid_principal) / remaining_due_before_pay
+        i_ratio = (due_interest - paid_interest) / remaining_due_before_pay
         
-        target.paid_principal += (pay_amount * p_ratio)
-        target.paid_interest  += (pay_amount * i_ratio)
+        target.paid_principal = paid_principal + (pay_amount * p_ratio)
+        target.paid_interest = paid_interest + (pay_amount * i_ratio)
     else:
         # Si le paiement restant était 0, mettez tout sur le principal
-        target.paid_principal += pay_amount
+        target.paid_principal = (target.paid_principal or 0) + pay_amount
     # --- FIN CORRECTION ---
 
     if target.paid_total >= target.due_total:
@@ -199,13 +205,7 @@ async def repay(loan_id: int, payload: RepaymentCreate, db: AsyncSession = Depen
     # 'loan.schedules' est déjà chargé, on peut le passer directement
     recompute_derived(loan, schedules=loan.schedules)
 
-    # إغلاق كامل؟
-    if loan.outstanding_principal <= 0 and all(s.status == ScheduleStatus.paid for s in loan.schedules):
-        loan.status = LoanStatus.paid
-
     # PAS de commit ici ! get_db s'en occupe.
-    # await db.commit()
-    # await db.refresh(repayment) <-- Ne fonctionnera pas sans commit
     
     # Nous devons flush pour obtenir l'ID du remboursement
     await db.flush()
@@ -218,7 +218,4 @@ async def cancel_loan(loan_id: int, db: AsyncSession = Depends(get_db)):
     if not loan:
         raise HTTPException(404, "Loan not found")
     if loan.repaid_total > 0:
-        raise HTTPException(400, "Cannot cancel after repayments")
-    loan.status = LoanStatus.canceled
-    # PAS de commit ici ! get_db s'en occupe.
-    return loan
+        raise HTTPException(400, "Cannot cancel
