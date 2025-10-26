@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2>Détails du Prêt #{{ loan.id }}</h2>
+        <a href="{{ url_for('loans_page') }}" class="btn btn-secondary">
+            &larr; Retour à la liste
+        </a>
+    </div>
+
+    <div class="row">
+        <div class="col-md-5">
+            
+            <div class="card mb-4">
+                <div class="card-header">
+                    Informations sur le Prêt
+                </div>
+                <div class="card-body">
+                    <h5 class="card-title">Employé: {{ loan.employee.first_name }} {{ loan.employee.last_name }}</h5>
+                    <p class="card-text"><strong>Montant Principal:</strong> {{ "%.2f"|format(loan.principal) }} TND</p>
+                    <p class="card-text">
+                        <strong>Statut:</strong>
+                        <span class="badge 
+                            {% if loan.status.value == 'draft' %}bg-secondary
+                            {% elif loan.status.value == 'active' %}bg-success
+                            {% elif loan.status.value == 'paid' %}bg-info
+                            {% else %}bg-primary{% endif %}">
+                            {{ loan.status.value }}
+                        </span>
+                    </p>
+                    <p class="card-text"><strong>Date de début:</strong> {{ loan.start_date }}</p>
+                    <p class="card-text"><strong>Termes:</strong> {{ loan.term_count }} {{ loan.term_unit.value }}(s)</p>
+                    <hr>
+                    <p class="card-text"><strong>Total à payer:</strong> {{ "%.2f"|format(loan.due_total) }} TND</p>
+                    <p class="card-text"><strong>Total Remboursé:</strong> {{ "%.2f"|format(loan.repaid_total) }} TND</p>
+                    <p class="card-text"><strong>Solde Restant:</strong> 
+                        <strong>{{ "%.2f"|format(loan.due_total - loan.repaid_total) }} TND</strong>
+                    </p>
+                </div>
+            </div>
+
+            {% if loan.status.value == 'active' %}
+            <div class="card">
+                <div class="card-header">
+                    Effectuer un Remboursement
+                </div>
+                <div class="card-body">
+                    <form action="{{ url_for('loan_repay_web', loan_id=loan.id) }}" method="POST">
+                        <div class="mb-3">
+                            <label for="amount" class="form-label">Montant</label>
+                            <input type="number" step="0.01" class="form-control" id="amount" name="amount" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="paid_on" class="form-label">Payé le</label>
+                            <input type="date" class="form-control" id="paid_on" name="paid_on" value="{{ today_date }}" required>
+                        </div>
+                         <div class="mb-3">
+                            <label for="notes" class="form-label">Notes (Optionnel)</label>
+                            <input type="text" class="form-control" id="notes" name="notes">
+                        </div>
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-save"></i> Enregistrer le paiement
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% endif %}
+
+        </div>
+
+        <div class="col-md-7">
+            <div class="card">
+                <div class="card-header">
+                    Échéancier de Remboursement
+                </div>
+                <div class="card-body">
+                    <table class="table table-striped table-sm">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Date d'échéance</th>
+                                <th>Montant Dû</th>
+                                <th>Montant Payé</th>
+                                <th>Statut</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for s in loan.schedules %}
+                            <tr>
+                                <td>{{ s.sequence_no }}</td>
+                                <td>{{ s.due_date }}</td>
+                                <td>{{ "%.2f"|format(s.due_total) }}</td>
+                                <td>{{ "%.2f"|format(s.paid_total) }}</td>
+                                <td>
+                                    <span class="badge 
+                                        {% if s.status.value == 'paid' %}bg-success
+                                        {% elif s.status.value == 'pending' %}bg-secondary
+                                        {% elif s.status.value == 'partial' %}bg-warning text-dark
+                                        {% elif s.status.value == 'overdue' %}bg-danger
+                                        {% else %}bg-light text-dark{% endif %}">
+                                        {{ s.status.value }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center">Aucun échéancier trouvé.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {% if loan.repayments %}
+            <div class="card mt-4">
+                <div class="card-header">Historique des Transactions</div>
+                <div class="card-body">
+                    <table class="table table-sm table-hover">
+                         <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Montant</th>
+                                <th>Source</th>
+                            </tr>
+                         </thead>
+                         <tbody>
+                            {% for r in loan.repayments %}
+                            <tr>
+                                <td>{{ r.paid_on }}</td>
+                                <td>{{ "%.2f"|format(r.amount) }} TND</td>
+                                <td>{{ r.source.value }}</td>
+                            </tr>
+                            {% endfor %}
+                         </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+
+        </div>
+    </div>
+
+</div>
+{% endblock %}
