@@ -218,4 +218,10 @@ async def cancel_loan(loan_id: int, db: AsyncSession = Depends(get_db)):
     if not loan:
         raise HTTPException(404, "Loan not found")
     if loan.repaid_total > 0:
-        raise HTTPException(400, "Cannot cancel
+        # Add the closing quote and parenthesis
+        raise HTTPException(400, "Cannot cancel a loan that has repayments")
+    
+    # You will likely need to add the rest of the function logic here
+    # For example:
+    # loan.status = LoanStatus.cancelled
+    # return loan
