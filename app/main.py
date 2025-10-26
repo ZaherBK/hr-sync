@@ -133,7 +133,8 @@ async def on_startup() -> None:
                     can_manage_pay=True,
                     can_manage_absences=True,
                     can_manage_leaves=True,
-                    can_manage_deposits=True
+                    can_manage_deposits=True,
+                    can_manage_loans=True
                 )
                 manager_role = Role(
                     name="Manager",
@@ -148,7 +149,8 @@ async def on_startup() -> None:
                     can_manage_pay=True,
                     can_manage_absences=True,
                     can_manage_leaves=True,
-                    can_manage_deposits=True
+                    can_manage_deposits=True,
+                    can_manage_loans=True
                 )
                 session.add_all([admin_role, manager_role])
                 await session.flush() # Pour obtenir les IDs
@@ -871,6 +873,7 @@ async def roles_update(
     role_to_update.can_manage_absences = "can_manage_absences" in form_data
     role_to_update.can_manage_leaves = "can_manage_leaves" in form_data
     role_to_update.can_manage_deposits = "can_manage_deposits" in form_data
+    role_to_update.can_manage_loans = "can_manage_loans" in form_data
     
     await db.commit()
     
