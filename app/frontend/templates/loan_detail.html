@@ -33,10 +33,12 @@
                 <p><strong>Date de début:</strong> <span class="timestamp">{{ loan.start_date }}</span></p>
                 <p><strong>Termes:</strong> {{ loan.term_count }} {{ loan.term_unit.value }}(s)</p>
                 <hr style="border-color: var(--border);">
-                <p><strong>Total à payer:</strong> <span class="amount">{{ "%.2f"|format(loan.due_total) }} TND</span></p>
+                <!-- FIX: Remplacé 'loan.due_total' inexistant par 'loan.principal' -->
+                <p><strong>Total à payer:</strong> <span class="amount">{{ "%.2f"|format(loan.principal) }} TND</span></p>
                 <p><strong>Total Remboursé:</strong> <span class="amount">{{ "%.2f"|format(loan.repaid_total) }} TND</span></p>
                 <p><strong>Solde Restant:</strong> 
-                    <strong class="amount" style="color: var(--gold); font-size: 1.1rem;">{{ "%.2f"|format(loan.due_total - loan.repaid_total) }} TND</strong>
+                    <!-- FIX: Remplacé 'loan.due_total' inexistant par 'loan.principal' -->
+                    <strong class="amount" style="color: var(--gold); font-size: 1.1rem;">{{ "%.2f"|format(loan.principal - loan.repaid_total) }} TND</strong>
                 </p>
             </div>
         </div>
