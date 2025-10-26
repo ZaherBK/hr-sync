@@ -1,88 +1,107 @@
 {% extends "base.html" %}
 
-{% block title %}{{ app_name }} - Paramètres{% endblock %}
-
 {% block content %}
-<div class="container mt-4">
-    <h2>Paramètres</h2>
-    <p class="text-muted">Gérez les paramètres avancés et les journaux du système.</p>
+<h2 class="page-title"><i class="fa-solid fa-cogs"></i> Paramètres</h2>
 
-    <div class="row">
-        <!-- Journaux d'audit -->
-        <div class="col-md-6">
-            <div class="card shadow-sm mb-4">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">Journaux d'Audit Récents</h5>
-                    {% if user.permissions.can_clear_logs %}
-                    <form action="{{ url_for('clear_logs') }}" method="POST" onsubmit="return confirm('Êtes-vous sûr de vouloir vider TOUS les journaux de transactions (absences, avances, congés, paies) ? Cette action est irréversible.');">
-                        <button type="submit" class="btn btn-danger btn-sm">
-                            <i class="fas fa-trash-can me-1"></i> Vider les Journaux
-                        </button>
-                    </form>
-                    {% endif %}
-                </div>
-                <div class="card-body" style="max-height: 400px; overflow-y: auto;">
-                    <ul class="list-group list-group-flush">
-                        {% for log in logs %}
-                        <li class="list-group-item">
-                            <small class="text-muted">{{ log.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
-                            <div>
-                                <strong>{{ log.actor_full_name }}</strong> a {{ log.action }} 
-                                l'entité {{ log.entity }} #{{ log.entity_id }}.
-                                <p class="mb-0 text-muted"><small>{{ log.details }}</small></p>
-                            </div>
-                        </li>
-                        {% else %}
-                        <li class="list-group-item">Aucun journal trouvé.</li>
-                        {% endfor %}
-                    </ul>
-                </div>
-            </div>
+<div class="card form-card">
+  <h3><i class="fa-solid fa-shield-halved"></i> Contrôle d'Accès</h3>
+  <p class="hint">
+    Gérer les rôles et les permissions granulaires pour les utilisateurs de l'application.
+  </p>
+  <div class="form-actions" style="margin-top: 1rem;">
+    <a href="{{ url_for('roles_page') }}" class="btn btn-primary">
+      <i class="fa-solid fa-edit"></i> Gérer les Rôles
+    </a>
+  </div>
+</div>
+<div class="card form-card" style="border-color: var(--danger);">
+  <h3><i class="fa-solid fa-bomb"></i> Zone de Danger</h3>
+  <p class="hint">
+    Supprime toutes les données transactionnelles (absences, avances, congés, paiements) et tous les journaux d'audit.
+    Les employés, utilisateurs et magasins ne seront PAS supprimés.
+  </p>
+  <div class="form-actions" style="margin-top: 1rem;">
+    <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#clearLogsModal">
+      <i class="fa-solid fa-trash-alt"></i> Purger les journaux de transactions
+    </button>
+  </div>
+</div>
+
+<div class="modal fade" id="clearLogsModal" tabindex="-1" aria-labelledby="clearLogsModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content card">
+      <form action="{{ url_for('clear_logs') }}" method="post">
+        <div class="modal-header">
+          <h5 class="modal-title" id="clearLogsModalLabel">Confirmer la Purge</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" style="background-color: white;"></button>
         </div>
-
-        <!-- NOUVEAU : Backup & Restore -->
-        {% if user.permissions.is_admin %}
-        <div class="col-md-6">
-            <div class="card shadow-sm mb-4">
-                <div class="card-header">
-                    <h5 class="mb-0">Backup / Restore</h5>
-                </div>
-                <div class="card-body">
-                    <!-- Export -->
-                    <div class="mb-3">
-                        <h6>Exporter les Données</h6>
-                        <p class="text-muted small">Téléchargez un fichier JSON contenant toutes les données de l'application (sauf les mots de passe).</p>
-                        <a href="{{ url_for('export_data') }}" class="btn btn-success">
-                            <i class="fas fa-download me-2"></i> Exporter le Backup
-                        </a>
-                    </div>
-                    
-                    <hr>
-
-                    <!-- Import -->
-                    <div>
-                        <h6>Importer les Données</h6>
-                        <div class="alert alert-danger">
-                            <strong><i class="fas fa-exclamation-triangle me-2"></i>ATTENTION !</strong>
-                            L'importation d'un fichier écrasera et remplacera <strong>TOUTES</strong> les données actuelles (employés, prêts, etc.). Utilisez avec une extrême prudence.
-                        </div>
-                        <form action="{{ url_for('import_data') }}" method="POST" enctype="multipart/form-data" 
-                              onsubmit="return confirm('CONFIRMEZ : Voulez-vous vraiment effacer toutes les données et les remplacer par ce backup ?');">
-                            <div class="mb-3">
-                                <label for="backup_file" class="form-label">Fichier Backup (.json)</label>
-                                <input class="form-control" type="file" id="backup_file" name="backup_file" accept=".json" required>
-                            </div>
-                            <button type="submit" class="btn btn-danger">
-                                <i class="fas fa-upload me-2"></i> Importer et Écraser
-                            </button>
-                        </form>
-                    </div>
-                </div>
-            </div>
+        <div class="modal-body">
+          <p>Êtes-vous absolument sûr de vouloir purger <strong>toutes</strong> les données transactionnelles ?</p>
+          <p class="text-danger"><strong>Cette action est irréversible.</strong></p>
+          <p>Cela inclut : Absences, Avances, Congés, Paiements et l'historique d'Audit.</p>
         </div>
-        {% endif %}
-        <!-- FIN NOUVEAU -->
-
+        <!-- FIX: Corrigé 'class_content' en 'class' -->
+        <div class="modal-footer form-actions">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-danger">Oui, tout supprimer</button>
+        </div>
+      </form>
     </div>
+  </div>
+</div>
+
+<h4 class="mt-4">Activité Récente (Transactions)</h4>
+<div class="card table-card">
+  <div class="table-responsive">
+    <table>
+      <thead>
+        <tr>
+          <th>Quand</th>
+          <th>Action</th>
+          <th>Entité</th>
+          <th>Détails</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for log in logs %}
+        <tr>
+          <!-- FIX: Corrigé 'class_content' en 'class' -->
+          <td class="timestamp">{{ log.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+          <td>
+            {% if log.action == 'create' %}
+              <span class="badge action-create">Création</span>
+            {% elif log.action == 'approve' %}
+              <span class="badge action-approve">Approbation</span>
+            {% elif log.action == 'delete' %}
+                <span class="badge" style="background:rgba(239,68,68,.26); color:#ffd0d0;">Suppression</span>
+            {% else %}
+              <span class="badge">{{ log.action }}</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if log.entity == 'leave' %}
+              <span class="badge action-leave">Congé</span>
+            {% elif log.entity == 'deposit' %}
+              <span class="badge action-deposit">Avance</span>
+            {% elif log.entity == 'pay' %}
+              <!-- FIX: Corrigé 'class_content' en 'class' -->
+              <span class="badge action-pay">Paiement</span>
+            {% elif log.entity == 'attendance' %}
+                <span class="badge ltype-unpaid">Absence</span>
+            {% else %}
+              <span class="badge">{{ log.entity }}</span>
+            {% endif %}
+          </td>
+          <td class="details">{{ log.details }}</td>
+        </tr>
+        {% else %}
+        <tr>
+          <!-- FIX: Corrigé 'class_content' en 'class' -->
+          <td colspan="4" class="text-center no-data">Aucune activité de transaction enregistrée.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 </div>
 {% endblock %}
