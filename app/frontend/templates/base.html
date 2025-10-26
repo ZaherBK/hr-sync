@@ -108,6 +108,14 @@
                 </a>
               </li>
               {% endif %}
+              {% if user.permissions.can_manage_loans %}
+              <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('loans_page') }}">
+                  <span data-feather="dollar-sign"></span>
+                  Gérer les Prêts
+                </a>
+              </li>
+              {% endif %}
               
               {% if user.permissions.is_admin or user.permissions.can_view_reports %}
               <li class="nav-item">
