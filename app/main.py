@@ -20,7 +20,7 @@ from . import models, schemas
 
 # --- CORRIGÉ : Import de get_db depuis .deps ---
 from .db import engine, Base, AsyncSessionLocal
-from .auth import authenticate_user, create_access_token, hash_password, ACCESS_TOKEN_EXPIRE_MINUTES, api_require_permission# --- FIN CORRIGÉ ---
+from .auth import authenticate_user, create_access_token, hash_password, ACCESS_TOKEN_EXPIRE_MINUTES, api_require_permission
 
 # Importer TOUS les modèles nécessaires
 from .models import (
