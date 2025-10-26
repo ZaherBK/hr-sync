@@ -36,6 +36,10 @@ from .routers import users, branches, employees as employees_api, attendance as 
 from .deps import get_db, web_require_permission, get_current_session_user
 # --- LOANS ---
 from app.api import loans as loans_api
+from app.auth import web_require_permission
+from app.models import Employee, Loan
+from app.schemas import LoanCreate
+from app.services.loan_calc import build_schedule, recompute_derived
 
 # --- FIN MODIFIÉ ---
 
@@ -1150,3 +1154,35 @@ async def clear_transaction_logs(
         print(f"ERREUR lors du nettoyage des journaux: {e}")
 
     return RedirectResponse(request.url_for('settings_page'), status_code=status.HTTP_302_FOUND)
+
+# --- LOANS SYSTEM -----
+@app.get("/loans", name="loans_page")
+async def loans_page(request: Request, db: AsyncSession = Depends(get_db), user: dict = Depends(web_require_permission("can_manage_loans"))):
+    employees = (await db.execute(select(Employee).where(Employee.active==True).order_by(Employee.first_name))).scalars().all()
+    loans = (await db.execute(select(Loan).order_by(Loan.created_at.desc()).limit(200))).scalars().all()
+    return templates.TemplateResponse("loans.html", {"request": request, "user": user, "app_name": APP_NAME, "employees": employees, "loans": loans})
+
+@app.post("/loans/create", name="loans_create_web")
+async def loans_create_web(
+    request: Request,
+    employee_id: Annotated[int, Form()],
+    principal: Annotated[Decimal, Form()],
+    interest_type: Annotated[str, Form()],
+    annual_interest_rate: Annotated[Decimal | None, Form()] = None,
+    term_count: Annotated[int, Form()] = 1,
+    term_unit: Annotated[str, Form()] = "month",
+    start_date: Annotated[dt_date, Form()] = dt_date.today(),
+    first_due_date: Annotated[dt_date | None, Form()] = None,
+    fee: Annotated[Decimal | None, Form()] = None,
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(web_require_permission("can_manage_loans")),
+):
+    payload = LoanCreate(
+        employee_id=employee_id, principal=principal, interest_type=interest_type,
+        annual_interest_rate=annual_interest_rate, term_count=term_count, term_unit=term_unit,
+        start_date=start_date, first_due_date=first_due_date, fee=fee
+    )
+    # Reuse API path
+    from app.api.loans import create_loan
+    await create_loan(payload, db, user)
+    return RedirectResponse(request.url_for("loans_page"), status_code=status.HTTP_302_FOUND)
