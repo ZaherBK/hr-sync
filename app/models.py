@@ -17,7 +17,7 @@ from sqlalchemy import (
     Text,
     func,
     Numeric,
-    desc  # <--- Importez 'desc'
+    desc  # <--- Assurez-vous que 'desc' est importé
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -257,15 +257,15 @@ class Loan(Base):
         "LoanSchedule", 
         back_populates="loan", 
         cascade="all, delete-orphan",
-        # Utilisez un simple string pour le nom de la colonne
-        order_by="sequence_no"
+        # Utilisez une chaîne "ClassName.column_name"
+        order_by="LoanSchedule.sequence_no"
     )
     repayments = relationship(
         "LoanRepayment", 
         back_populates="loan", 
         cascade="all, delete-orphan",
-        # Utilisez desc() avec un simple string pour le nom de la colonne
-        order_by=desc("paid_on")
+        # Utilisez desc() avec la chaîne "ClassName.column_name"
+        order_by=desc("LoanRepayment.paid_on")
     )
     # --- FIN CORRECTION ---
 
