@@ -17,7 +17,7 @@ from sqlalchemy import (
     Text,
     func,
     Numeric,
-    desc  # <--- Assurez-vous que 'desc' est importé
+    desc  # <--- Importez 'desc'
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -112,8 +112,10 @@ class Employee(Base):
     leaves = relationship("Leave", back_populates="employee")
     deposits = relationship("Deposit", back_populates="employee")
     pay_history = relationship("Pay", back_populates="employee")
-    # Ajout d'une relation inverse pour les prêts, si vous en avez besoin
+    
+    # --- CORRECTION AJOUTÉE ---
     loans = relationship("Loan", back_populates="employee")
+    # --- FIN CORRECTION ---
 
 
 class AttendanceType(str, enum.Enum):
@@ -249,7 +251,7 @@ class Loan(Base):
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    # --- CORRECTION ---
+    # --- CORRECTION FINALE ---
     employee = relationship("Employee", back_populates="loans")
     schedules = relationship(
         "LoanSchedule", 
