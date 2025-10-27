@@ -98,6 +98,7 @@ async def get_current_db_user(
 
 
 # --- 3. Startup Event (MODIFIÉ) ---
+# ... (Startup code remains the same) ...
 @app.on_event("startup")
 async def on_startup() -> None:
     """Créer les tables de la base de données et ajouter les rôles/données initiaux."""
@@ -193,6 +194,7 @@ class CustomJSONEncoder(json.JSONEncoder):
         if isinstance(obj, (dt_date, datetime)):
             return obj.isoformat()
         if isinstance(obj, Base): # Gérer les objets SQLAlchemy
+             # --- FIX: Inclure toutes les colonnes par défaut ---
              return {c.name: getattr(obj, c.name) for c in obj.__table__.columns}
         if isinstance(obj, enum.Enum):
             return obj.value
@@ -230,7 +232,7 @@ def _parse_dates(item: dict, date_fields: list[str] = [], datetime_fields: list[
 
 
 # --- 5. Routes des Pages Web (GET et POST) ---
-
+# ... (Routes Home, Login, Logout, Employees, Attendance, Deposits, Leaves, Report, Pay, Roles, Users restent inchangées) ...
 @app.get("/", response_class=HTMLResponse, name="home")
 async def home(
     request: Request,
@@ -1056,9 +1058,12 @@ async def export_data(
     try:
         # Exporter chaque table
         data_to_export["branches"] = (await db.execute(select(Branch))).scalars().all()
-        # Ne pas exporter les mots de passe hashés
+        
+        # --- FIX: Inclure hashed_password dans l'export ---
         users_raw = (await db.execute(select(User))).scalars().all()
-        data_to_export["users"] = [{col.name: getattr(u, col.name) for col in User.__table__.columns if col.name != 'hashed_password'} for u in users_raw]
+        # Utiliser l'encodeur JSON personnalisé qui gère les objets SQLAlchemy
+        data_to_export["users"] = users_raw 
+        # --- FIN DU FIX ---
         
         data_to_export["employees"] = (await db.execute(select(Employee))).scalars().all()
         data_to_export["attendance"] = (await db.execute(select(Attendance))).scalars().all()
@@ -1068,11 +1073,8 @@ async def export_data(
         data_to_export["loans"] = (await db.execute(select(Loan))).scalars().all()
         data_to_export["loan_schedules"] = (await db.execute(select(LoanSchedule))).scalars().all()
         data_to_export["loan_repayments"] = (await db.execute(select(LoanRepayment))).scalars().all()
-        
-        # Les Rôles sont gérés par le seed, mais exportons-les pour référence
         data_to_export["roles"] = (await db.execute(select(Role))).scalars().all()
 
-        
     except Exception as e:
         print(f"Erreur pendant l'export: {e}")
         return RedirectResponse(request.url_for('settings_page'), status_code=status.HTTP_302_FOUND)
@@ -1099,7 +1101,6 @@ async def import_data(
     """Importe et restaure les données depuis un fichier JSON."""
     
     if not backup_file.filename.endswith(".json"):
-        # Gérer l'erreur de type de fichier
         return RedirectResponse(request.url_for('settings_page'), status_code=status.HTTP_302_FOUND)
 
     try:
@@ -1128,12 +1129,18 @@ async def import_data(
                 db.add(Branch(**item))
         await db.flush()
 
+        # --- FIX: Utiliser le mot de passe du fichier JSON ---
         if "users" in data:
-            default_hashed_password = hash_password("password123")
             for user_data in data["users"]:
-                user_data['hashed_password'] = default_hashed_password
+                # Vérifier si 'hashed_password' existe et n'est pas None dans le JSON
+                if 'hashed_password' not in user_data or user_data['hashed_password'] is None:
+                    # Si manquant, mettre un mot de passe par défaut pour éviter l'erreur NOT NULL
+                    print(f"AVERTISSEMENT: Mot de passe manquant pour {user_data.get('email')}. Utilisation de 'password123'.")
+                    user_data['hashed_password'] = hash_password("password123")
+                
                 user_data = _parse_dates(user_data, datetime_fields=['created_at'])
                 db.add(User(**user_data))
+        # --- FIN DU FIX ---
         
         if "employees" in data:
             for item in data["employees"]:
@@ -1141,7 +1148,6 @@ async def import_data(
                 db.add(Employee(**item))
         await db.flush() 
 
-        # --- FIX: Appliquer le parseur de dates aux autres modèles ---
         if "attendance" in data:
             for item in data["attendance"]:
                 item = _parse_dates(item, date_fields=['date'], datetime_fields=['created_at'])
@@ -1159,13 +1165,10 @@ async def import_data(
                 item = _parse_dates(item, date_fields=['date'], datetime_fields=['created_at'])
                 db.add(Pay(**item))
         
-        # --- FIX: Ajouter 'next_due_on' aux champs de date pour Loan ---
         if "loans" in data:
             for item in data["loans"]:
-                # Inclure 'next_due_on' ici
                 item = _parse_dates(item, date_fields=['start_date', 'next_due_on'], datetime_fields=['created_at']) 
                 db.add(Loan(**item))
-        # --- FIN DU FIX ---
         await db.flush() 
         
         if "loan_schedules" in data:
@@ -1177,14 +1180,12 @@ async def import_data(
             for item in data["loan_repayments"]:
                 item = _parse_dates(item, date_fields=['paid_on'], datetime_fields=['created_at'])
                 db.add(LoanRepayment(**item))
-        # --- FIN DU FIX (implicite, car date parsing appliqué ci-dessus) ---
 
         await db.commit()
         
     except Exception as e:
         await db.rollback()
         print(f"ERREUR lors de l'import: {e}")
-        # Idéalement : ajouter un message d'erreur flash
     
     return RedirectResponse(request.url_for('settings_page'), status_code=status.HTTP_302_FOUND)
 
@@ -1215,12 +1216,10 @@ async def loans_create_web(
     request: Request,
     employee_id: Annotated[int, Form()],
     principal: Annotated[Decimal, Form()],
-    # --- FIX LOGIQUE PRÊT: Termes non pertinents, mais gardés pour compatibilité API ---
-    term_count: Annotated[int, Form()] = 1,
-    term_unit: Annotated[str, Form()] = "month",
+    term_count: Annotated[int, Form()] = 1, # Gardé pour compatibilité API
+    term_unit: Annotated[str, Form()] = "month", # Gardé pour compatibilité API
     start_date: Annotated[dt_date, Form()] = dt_date.today(),
-    first_due_date: Annotated[dt_date | None, Form()] = None,
-    # --- NOUVEAU: Ajout du champ notes ---
+    first_due_date: Annotated[dt_date | None, Form()] = None, # Gardé pour compatibilité API
     notes: Annotated[str, Form()] = None,
     db: AsyncSession = Depends(get_db),
     user: dict = Depends(web_require_permission("can_manage_loans")),
@@ -1235,27 +1234,25 @@ async def loans_create_web(
     if not permissions.get("is_admin") and user.get("branch_id") != employee.branch_id:
         return RedirectResponse(request.url_for("loans_page"), status_code=status.HTTP_302_FOUND)
 
-
+    # Créer le payload pour l'API interne, même si certains champs ne sont plus utilisés par la logique web
     payload = LoanCreate(
         employee_id=employee_id, principal=principal, interest_type="none", 
         annual_interest_rate=None, term_count=term_count, term_unit=term_unit,
         start_date=start_date, first_due_date=first_due_date, fee=None
     )
-    from app.api.loans import create_loan # Import local pour éviter dépendance cyclique potentielle
+    from app.api.loans import create_loan 
     
-    # L'API create_loan gère l'ajout à la DB et le commit initial
-    new_loan = await create_loan(payload, db, user) # L'API crée aussi le log d'audit
+    new_loan = await create_loan(payload, db, user) 
     
-    # Ajouter la note manuellement après la création
+    # Ajouter la note manuellement
     if new_loan and notes:
         try:
             new_loan.notes = notes
-            await db.commit() # Commit juste pour la note
+            await db.commit() 
         except Exception as e:
             await db.rollback()
             print(f"Erreur lors de l'ajout de la note au prêt: {e}")
-            # Gérer l'erreur si nécessaire
-    
+            
     return RedirectResponse(request.url_for("loans_page"), status_code=status.HTTP_302_FOUND)
 
 
