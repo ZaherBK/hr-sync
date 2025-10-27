@@ -26,8 +26,7 @@ from .db import engine, Base, AsyncSessionLocal
 from .auth import authenticate_user, create_access_token, hash_password, ACCESS_TOKEN_EXPIRE_MINUTES, api_require_permission
 
 # Importer TOUS les modèles nécessaires
-from .models import PayType, AttendanceType, LeaveType, LoanStatus, LoanTermUnit, LoanScheduleStatus, RepaymentSource, User, Branch, Employee, Attendance, Leave, Deposit, Pay, Loan, LoanSchedule, LoanRepayment, AuditLog # Added missing Enums
-from .schemas import RoleCreate, RoleUpdate
+from .models import PayType, AttendanceType, LeaveType, LoanStatus, LoanTermUnit, ScheduleStatus, RepaymentSource, User, Branch, Employee, Attendance, Leave, Deposit, Pay, Loan, LoanSchedule, LoanRepayment, AuditLog # Corrected Enum name
 
 from .audit import latest, log
 from .routers import users, branches, employees as employees_api, attendance as attendance_api, leaves as leaves_api, deposits as deposits_api
@@ -1243,8 +1242,9 @@ async def import_data(
             for item in data["loan_schedules"]:
                 item = _parse_dates(item, date_fields=['due_date'], datetime_fields=['created_at'])
                 if item.get('loan_id') is None: continue
-                # Convert LoanScheduleStatus
-                item['status'] = get_enum_member(LoanScheduleStatus, item.get('status'), LoanScheduleStatus.pending)
+                # --- FIX: Use correct Enum name ScheduleStatus ---
+                item['status'] = get_enum_member(ScheduleStatus, item.get('status'), ScheduleStatus.pending) # Convert Enum using correct name
+                # --- END FIX ---
                 item.setdefault('sequence_no', 0)
                 item.setdefault('due_total', 0.0)
                 item.setdefault('paid_total', 0.0)
