@@ -599,3 +599,21 @@ td.amount{ font-weight:800; }
 }
 .theme-toggle:hover{ transform: translateY(-1px); box-shadow: var(--shadow-1); }
 
+.modal-content {
+  z-index: 1056; /* Slightly higher than default backdrop (1050) and modal (1055) */
+  position: relative; /* Needed for z-index to work reliably on static elements */
+}
+
+/* Ensure modal footer and buttons inside are clickable */
+.modal-footer,
+.modal-footer .btn {
+  pointer-events: auto !important; /* Force enable click/hover events */
+  z-index: 1057; /* Ensure footer buttons are definitely on top within the modal */
+  position: relative; /* May help ensure z-index applies */
+}
+
+/* Just in case the backdrop is somehow interfering */
+.modal-backdrop {
+   z-index: 1050; /* Explicitly set default Bootstrap backdrop z-index */
+}
+
