@@ -231,14 +231,39 @@ def _parse_dates(item: dict, date_fields: list[str] = [], datetime_fields: list[
 @app.get("/", response_class=HTMLResponse, name="home")
 async def home(
     request: Request,
-    current_user: models.User = Depends(get_current_db_user)
+    db: AsyncSession = Depends(get_db), # <<< Add db dependency
+    current_user: models.User = Depends(get_current_db_user) # Get full user object
 ):
     if not current_user:
         return RedirectResponse("/login", status_code=status.HTTP_302_FOUND)
 
+    # --- FIX: Fetch recent activity logs FOR ADMIN ---
+    activity_logs = []
+    # Ensure permissions relation is loaded and user has permissions attribute
+    if hasattr(current_user, 'permissions') and current_user.permissions and current_user.permissions.is_admin:
+        permissions_dict = current_user.permissions.to_dict() # Use the existing method
+        activity_logs = await latest( # Use the imported 'latest' function
+            db=db, # Pass the db session
+            user_is_admin=permissions_dict.get("is_admin", False),
+            branch_id=current_user.branch_id, # Use branch_id from the full user object
+             # Fetch a broader range of activities for the admin dashboard view
+            entity_types=["leave", "attendance", "deposit", "pay", "loan", "user", "role", "employee", "branch", "all_logs"],
+            limit=15 # Limit to the latest 15 activities for the dashboard
+        )
+        # Eager load actor information if needed by the template (optional optimization)
+        # This assumes 'latest' doesn't already load it. If 'latest' loads it, skip this.
+        # actor_ids = {log.actor_id for log in activity_logs if log.actor_id}
+        # if actor_ids:
+        #     actors_res = await db.execute(select(User).where(User.id.in_(actor_ids)))
+        #     actors_map = {actor.id: actor for actor in actors_res.scalars()}
+        #     for log in activity_logs:
+        #         log.actor = actors_map.get(log.actor_id) # Attach actor object
+    # --- END FIX ---
+
     context = {
         "request": request,
-        "user": current_user
+        "user": current_user, # Pass the full user object
+        "activity": activity_logs # --- FIX: Pass activity logs to template ---
     }
     return templates.TemplateResponse("dashboard.html", context)
 
