@@ -83,37 +83,40 @@
            </tbody>
         </table>
     </div>
-
-    {# --- NOUVEAU: Modals de Confirmation --- #}
-    {% for a in attendance %}
-    <div class="modal fade" id="deleteAttendanceModal-{{ a.id }}" tabindex="-1" aria-labelledby="deleteAttendanceModalLabel-{{ a.id }}" aria-hidden="true">
-      <div class="modal-dialog">
-        <div class="modal-content card"> {# Apply card style to modal #}
-          <form action="{{ url_for('attendance_delete', attendance_id=a.id) }}" method="POST">
-            <div class="modal-header">
-              <h5 class="modal-title" id="deleteAttendanceModalLabel-{{ a.id }}">Confirmer la Suppression</h5>
-              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" style="background-color: white;"></button>
-            </div>
-            <div class="modal-body">
-              <p>Êtes-vous sûr de vouloir supprimer l'absence du
-                 <strong>{{ a.date.strftime('%Y-%m-%d') }}</strong> pour
-                 <strong>{{ a.employee.first_name ~ ' ' ~ a.employee.last_name if a.employee else 'Employé ID:' ~ a.employee_id }}</strong> ?
-              </p>
-              <p class="text-danger">Cette action est irréversible.</p>
-            </div>
-            <div class="modal-footer form-actions">
-              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-              <button type="submit" class="btn btn-danger">Oui, Supprimer</button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
-    {% endfor %}
-    {# --- FIN NOUVEAU --- #}
-
+    {# --- MODALS MOVED FROM HERE --- #}
     {% else %}
         <p class="no-data" style="padding-top: 1rem;">Aucun enregistrement d'absence à afficher.</p> {# Added padding #}
     {% endif %}
-</div>
+</div> {# <-- End of card table-card div --> #}
+
+{# --- MODALS MOVED HERE (Outside the card) --- #}
+{% if attendance %} {# Check again if attendance exists before looping for modals #}
+  {% for a in attendance %}
+  <div class="modal fade" id="deleteAttendanceModal-{{ a.id }}" tabindex="-1" aria-labelledby="deleteAttendanceModalLabel-{{ a.id }}" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content card"> {# Apply card style to modal #}
+        <form action="{{ url_for('attendance_delete', attendance_id=a.id) }}" method="POST">
+          <div class="modal-header">
+            <h5 class="modal-title" id="deleteAttendanceModalLabel-{{ a.id }}">Confirmer la Suppression</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" style="background-color: white;"></button>
+          </div>
+          <div class="modal-body">
+            <p>Êtes-vous sûr de vouloir supprimer l'absence du
+               <strong>{{ a.date.strftime('%Y-%m-%d') }}</strong> pour
+               <strong>{{ a.employee.first_name ~ ' ' ~ a.employee.last_name if a.employee else 'Employé ID:' ~ a.employee_id }}</strong> ?
+            </p>
+            <p class="text-danger">Cette action est irréversible.</p>
+          </div>
+          <div class="modal-footer form-actions">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+            <button type="submit" class="btn btn-danger">Oui, Supprimer</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+{% endif %}
+{# --- END OF MOVED MODALS --- #}
+
 {% endblock %}
