@@ -1084,6 +1084,7 @@ async def export_data(
         data_to_export["loan_schedules"] = (await db.execute(select(LoanSchedule))).scalars().all()
         data_to_export["loan_repayments"] = (await db.execute(select(LoanRepayment))).scalars().all()
         data_to_export["roles"] = (await db.execute(select(Role))).scalars().all()
+        data_to_export["audit_logs"] = (await db.execute(select(AuditLog).order_by(AuditLog.created_at))).scalars().all() # Add this line
 
 
     except Exception as e:
@@ -1215,6 +1216,29 @@ async def import_data(
                 if item.get('employee_id') is None: continue
                 item.setdefault('amount', 0.0)
                 db.add(Deposit(**item))
+
+        if "audit_logs" in data:
+            print(f"Importation de {len(data['audit_logs'])} entrées d'audit log...") # Optional: Add logging
+            for item in data["audit_logs"]:
+                item = _parse_dates(item, datetime_fields=['created_at'])
+                if item.get('actor_id') is None:
+                    # Maybe try to find user by email if actor_id is missing but email exists?
+                    # For now, we skip if actor_id is essential and missing.
+                    print(f"AVERTISSEMENT: actor_id manquant pour l'entrée d'audit log ID {item.get('id', 'N/A')}. Log ignoré.")
+                    continue
+                # Set defaults for nullable fields if they are missing
+                item.setdefault('entity_id', None)
+                item.setdefault('branch_id', None)
+                item.setdefault('details', None)
+                # Ensure required fields like action and entity exist
+                if not item.get('action') or not item.get('entity'):
+                     print(f"AVERTISSEMENT: Action ou Entité manquante pour l'entrée d'audit log ID {item.get('id', 'N/A')}. Log ignoré.")
+                     continue
+
+                # Remove 'id' if present, let DB generate new one if needed, or handle potential conflicts
+                item.pop('id', None)
+
+                db.add(AuditLog(**item))
 
         if "pay_history" in data:
             for item in data["pay_history"]:
