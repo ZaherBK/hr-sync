@@ -26,10 +26,7 @@ from .db import engine, Base, AsyncSessionLocal
 from .auth import authenticate_user, create_access_token, hash_password, ACCESS_TOKEN_EXPIRE_MINUTES, api_require_permission
 
 # Importer TOUS les modèles nécessaires
-from .models import (
-    Attendance, AttendanceType, Branch, Deposit, Employee, Leave, User, Pay, PayType, AuditLog, LeaveType,
-    Role, Loan, LoanSchedule, LoanRepayment
-)
+from .models import PayType, AttendanceType, LeaveType, LoanStatus, LoanTermUnit, LoanScheduleStatus, RepaymentSource, User, Branch, Employee, Attendance, Leave, Deposit, Pay, Loan, LoanSchedule, LoanRepayment, AuditLog # Added missing Enums
 from .schemas import RoleCreate, RoleUpdate
 
 from .audit import latest, log
@@ -1126,7 +1123,6 @@ async def import_data(
         data = json.loads(contents.decode("utf-8"))
 
         # --- DANGER : SUPPRESSION DES DONNÉES ---
-        # (Suppression code inchangé)
         await db.execute(delete(AuditLog))
         await db.execute(delete(LoanRepayment))
         await db.execute(delete(LoanSchedule))
@@ -1141,46 +1137,44 @@ async def import_data(
 
         # --- RÉINSERTION DES DONNÉES ---
 
+        # Helper function to safely convert string to Enum
+        def get_enum_member(enum_cls, value, default=None):
+            if value is None:
+                return default
+            try:
+                return enum_cls(value)
+            except ValueError:
+                print(f"AVERTISSEMENT: Valeur d'énumération invalide '{value}' pour {enum_cls.__name__}. Utilisation de la valeur par défaut {default}.")
+                return default
+
         if "branches" in data:
             for item in data["branches"]:
                 item = _parse_dates(item, datetime_fields=['created_at'])
                 db.add(Branch(**item))
         await db.flush()
 
-        # --- FIX: Utiliser le mot de passe du fichier JSON, avec fallback ---
         if "users" in data:
             for user_data in data["users"]:
-                # Vérifier si 'hashed_password' existe et n'est pas None dans le JSON
                 if 'hashed_password' not in user_data or user_data['hashed_password'] is None:
-                    # Si manquant, mettre un mot de passe par défaut pour éviter l'erreur NOT NULL
                     print(f"AVERTISSEMENT: Mot de passe manquant pour {user_data.get('email', 'Utilisateur inconnu')}. Utilisation de 'password123'.")
                     user_data['hashed_password'] = hash_password("password123")
                 else:
-                     # S'assurer que le mot de passe hashé est une string (peut être lu comme autre chose depuis JSON)
                      user_data['hashed_password'] = str(user_data['hashed_password'])
 
-
                 user_data = _parse_dates(user_data, datetime_fields=['created_at'])
-                # S'assurer que les champs obligatoires non nullable ont une valeur par défaut si absents du JSON
-                user_data.setdefault('is_active', True) # is_active a une valeur par défaut dans le modèle mais pas nullable
-                user_data.setdefault('role_id', 1) # Assumer role admin si manquant? ou lever une erreur?
-
-                # Gérer le cas où role_id est None après parsing
+                user_data.setdefault('is_active', True)
+                user_data.setdefault('role_id', 1)
                 if user_data.get('role_id') is None:
                      print(f"AVERTISSEMENT: role_id manquant ou null pour {user_data.get('email', 'Utilisateur inconnu')}. Assignation du rôle ID 1 (Admin).")
-                     user_data['role_id'] = 1 # Ou un autre ID de rôle par défaut valide
-
+                     user_data['role_id'] = 1
                 db.add(User(**user_data))
-        # --- FIN DU FIX ---
 
         if "employees" in data:
             for item in data["employees"]:
                 item = _parse_dates(item, datetime_fields=['created_at'])
-                # Ajouter des valeurs par défaut si nécessaire pour les champs non nullable
                 item.setdefault('active', True)
-                item.setdefault('position', 'Inconnu') # Exemple de valeur par défaut
+                item.setdefault('position', 'Inconnu')
                 if item.get('branch_id') is None:
-                    # Tentative de trouver une branche valide, sinon ignorer l'employé
                     first_branch_res = await db.execute(select(Branch).limit(1))
                     first_branch = first_branch_res.scalar_one_or_none()
                     if first_branch:
@@ -1188,56 +1182,60 @@ async def import_data(
                         item['branch_id'] = first_branch.id
                     else:
                         print(f"ERREUR: branch_id manquant pour employé {item.get('first_name')} {item.get('last_name')} et aucune branche par défaut trouvée. Employé ignoré.")
-                        continue # Ignorer cet employé
+                        continue
                 db.add(Employee(**item))
         await db.flush()
 
-        # --- FIX: Appliquer le parseur de dates aux autres modèles ---
         if "attendance" in data:
             for item in data["attendance"]:
                 item = _parse_dates(item, date_fields=['date'], datetime_fields=['created_at'])
-                # Vérifier les clés étrangères
                 if item.get('employee_id') is None: continue
-                item.setdefault('atype', AttendanceType.absent) # Valeur par défaut si absente
+                # Convert AttendanceType
+                item['atype'] = get_enum_member(AttendanceType, item.get('atype'), AttendanceType.absent)
                 db.add(Attendance(**item))
+
         if "leaves" in data:
             for item in data["leaves"]:
                 item = _parse_dates(item, date_fields=['start_date', 'end_date'], datetime_fields=['created_at'])
-                 # Vérifier les clés étrangères
                 if item.get('employee_id') is None: continue
-                item.setdefault('ltype', LeaveType.unpaid) # Valeur par défaut
-                item.setdefault('approved', False) # Valeur par défaut
+                # Convert LeaveType
+                item['ltype'] = get_enum_member(LeaveType, item.get('ltype'), LeaveType.unpaid)
+                item.setdefault('approved', False)
                 db.add(Leave(**item))
+
         if "deposits" in data:
             for item in data["deposits"]:
                 item = _parse_dates(item, date_fields=['date'], datetime_fields=['created_at'])
-                 # Vérifier les clés étrangères
                 if item.get('employee_id') is None: continue
-                item.setdefault('amount', 0.0) # Valeur par défaut
+                item.setdefault('amount', 0.0)
                 db.add(Deposit(**item))
+
         if "pay_history" in data:
             for item in data["pay_history"]:
                 item = _parse_dates(item, date_fields=['date'], datetime_fields=['created_at'])
-                 # Vérifier les clés étrangères
                 if item.get('employee_id') is None: continue
+                # Convert PayType <<<<------ FIX IS HERE
+                item['pay_type'] = get_enum_member(PayType, item.get('pay_type'), PayType.mensuel) # Assuming 'mensuel' is a valid default
                 item.setdefault('amount', 0.0)
-                item.setdefault('pay_type', PayType.salary) # Valeur par défaut
+                # item.setdefault('pay_type', PayType.salary) # Incorrect default removed
                 db.add(Pay(**item))
 
         if "loans" in data:
             for item in data["loans"]:
                 item = _parse_dates(item, date_fields=['start_date', 'next_due_on'], datetime_fields=['created_at'])
-                 # Vérifier les clés étrangères
                 if item.get('employee_id') is None: continue
-                # Ajouter des valeurs par défaut pour les champs non nullable
+                # Convert LoanStatus and LoanTermUnit
+                item['status'] = get_enum_member(LoanStatus, item.get('status'), LoanStatus.draft)
+                item['term_unit'] = get_enum_member(LoanTermUnit, item.get('term_unit'), LoanTermUnit.month)
+                # Convert LoanInterestType (though likely 'none' based on your code)
+                item['interest_type'] = get_enum_member(LoanInterestType, item.get('interest_type'), LoanInterestType.none)
+
                 item.setdefault('principal', 0.0)
                 item.setdefault('term_count', 1)
-                item.setdefault('term_unit', 'month')
-                item.setdefault('status', 'draft') # Ou une autre valeur par défaut de LoanStatus
                 item.setdefault('repaid_total', 0.0)
-                item.setdefault('scheduled_total', item.get('principal', 0.0)) # Calcul simple basé sur principal
-                item.setdefault('outstanding_principal', item.get('principal', 0.0)) # Calcul simple basé sur principal
-
+                # Recalculate scheduled_total and outstanding_principal if needed, or use defaults
+                item.setdefault('scheduled_total', item.get('principal', 0.0))
+                item.setdefault('outstanding_principal', item.get('principal', 0.0) - item.get('repaid_total', 0.0))
                 db.add(Loan(**item))
         await db.flush()
 
@@ -1245,33 +1243,35 @@ async def import_data(
             for item in data["loan_schedules"]:
                 item = _parse_dates(item, date_fields=['due_date'], datetime_fields=['created_at'])
                 if item.get('loan_id') is None: continue
+                # Convert LoanScheduleStatus
+                item['status'] = get_enum_member(LoanScheduleStatus, item.get('status'), LoanScheduleStatus.pending)
                 item.setdefault('sequence_no', 0)
                 item.setdefault('due_total', 0.0)
                 item.setdefault('paid_total', 0.0)
-                item.setdefault('status', 'pending') # Default LoanScheduleStatus
                 db.add(LoanSchedule(**item))
 
         if "loan_repayments" in data:
             for item in data["loan_repayments"]:
                 item = _parse_dates(item, date_fields=['paid_on'], datetime_fields=['created_at'])
                 if item.get('loan_id') is None: continue
+                # Convert RepaymentSource
+                item['source'] = get_enum_member(RepaymentSource, item.get('source'), RepaymentSource.cash)
                 item.setdefault('amount', 0.0)
-                item.setdefault('source', 'cash') # Default RepaymentSource
                 db.add(LoanRepayment(**item))
-        # --- FIN DU FIX ---
 
         await db.commit()
+        print("✅ Importation terminée avec succès.") # Success message
 
     except json.JSONDecodeError:
         print("ERREUR: Le fichier de sauvegarde n'est pas un JSON valide.")
         await db.rollback()
     except KeyError as e:
          print(f"ERREUR lors de l'import: Clé manquante dans le JSON - {e}")
+         traceback.print_exc()
          await db.rollback()
     except Exception as e:
         await db.rollback()
         print(f"ERREUR lors de l'import: {e}")
-        import traceback
         traceback.print_exc()
 
     return RedirectResponse(request.url_for('settings_page'), status_code=status.HTTP_302_FOUND)
@@ -1466,4 +1466,3 @@ async def loan_repay_web(
         request.url_for("loan_detail_page", loan_id=loan_id),
         status_code=status.HTTP_302_FOUND
     )
-
