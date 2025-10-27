@@ -7,29 +7,97 @@
 <div class="card ranked-card quick-links">
   <h3>Accès Rapide</h3>
   <div class="link-buttons">
-    <a href="{{ request.url_for('employees_page') }}" class="btn btn-gold"><i class="fa-solid fa-users"></i> Employés</a>
-    <a href="{{ request.url_for('attendance_page') }}" class="btn btn-secondary"><i class="fa-regular fa-calendar-xmark"></i> Absences</a>
-    <a href="{{ request.url_for('deposits_page') }}" class="btn btn-secondary"><i class="fa-solid fa-money-bill-transfer"></i> Avances</a>
-    <a href="{{ request.url_for('leaves_page') }}" class="btn btn-secondary"><i class="fa-solid fa-umbrella-beach"></i> Congés</a>
-    <a href="{{ request.url_for('pay_employee_page') }}" class="btn btn-success"><i class="fa-solid fa-hand-holding-dollar"></i> Payer</a>
+    {# Always show Employees link if user can manage them #}
+    {% if user.permissions.can_manage_employees %}
+      <a href="{{ request.url_for('employees_page') }}" class="btn btn-gold"><i class="fa-solid fa-users"></i> Employés</a>
+    {% endif %}
+
+    {# Absence Link #}
+    {% if user.permissions.can_manage_absences %}
+      <a href="{{ request.url_for('attendance_page') }}" class="btn btn-secondary"><i class="fa-regular fa-calendar-xmark"></i> Absences</a>
+    {% endif %}
+
+    {# Deposit Link #}
+    {% if user.permissions.can_manage_deposits %}
+      <a href="{{ request.url_for('deposits_page') }}" class="btn btn-secondary"><i class="fa-solid fa-money-bill-transfer"></i> Avances</a>
+    {% endif %}
+
+     {# Leave Link #}
+    {% if user.permissions.can_manage_leaves %}
+      <a href="{{ request.url_for('leaves_page') }}" class="btn btn-secondary"><i class="fa-solid fa-umbrella-beach"></i> Congés</a>
+    {% endif %}
+
+    {# Pay Link #}
+    {% if user.permissions.can_manage_pay %}
+     <a href="{{ request.url_for('pay_employee_page') }}" class="btn btn-success"><i class="fa-solid fa-hand-holding-dollar"></i> Payer</a>
+    {% endif %}
+
+    {# --- NOUVEAUX LIENS --- #}
+    {# Loan Link #}
+    {% if user.permissions.can_manage_loans %}
+      <a href="{{ request.url_for('loans_page') }}" class="btn btn-secondary"><i class="fa-solid fa-hand-holding-dollar"></i> Gérer Prêts</a>
+    {% endif %}
+
+    {# Report Link #}
+    {% if user.permissions.can_view_reports %}
+      <a href="{{ request.url_for('employee_report_index') }}" class="btn btn-primary"><i class="fa-solid fa-chart-simple"></i> Rapports</a>
+    {% endif %}
+    {# --- FIN NOUVEAUX LIENS --- #}
+
   </div>
 </div>
 
+{# Admin Activity Section - Uses 'activity' variable passed from 'home' function #}
 {% if user.permissions.is_admin %}
-<div class="table-card ranked-card">
+<div class="card table-card ranked-card" style="margin-top: 1.5rem;"> {# Added table-card class for consistency #}
   <h3>Activité Récente (Admin)</h3>
   {% if activity %}
   <div class="table-responsive">
     <table>
       <thead>
-        <tr><th>Quand</th><th>Action</th><th>Entité</th><th>Détails</th></tr>
+        <tr><th>Quand</th><th>Qui</th><th>Action</th><th>Entité</th><th>Détails</th></tr> {# Added 'Qui' column #}
       </thead>
       <tbody>
         {% for a in activity %}
         <tr>
           <td class="timestamp">{{ a.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
-          <td><span class="badge action-{{ a.action }}">{{ a.action }}</span></td>
-          <td>{{ a.entity }}{% if a.entity_id %} #{{ a.entity_id }}{% endif %}</td>
+          {# --- FIX: Show Actor Name --- #}
+          <td class="details">{{ a.actor.full_name if a.actor else 'Système' }}</td>
+          {# --- END FIX --- #}
+          <td>
+            {# --- FIX: Improved Badge Logic --- #}
+            {% if a.action == 'create' %}
+              <span class="badge action-create">Création</span>
+            {% elif a.action == 'approve' %}
+              <span class="badge action-approve">Approbation</span>
+            {% elif a.action == 'delete' %}
+                <span class="badge" style="background:rgba(239,68,68,.26); color:#ffd0d0;">Suppression</span>
+             {% elif a.action == 'update' %}
+                <span class="badge action-pay">Modification</span> {# Use a suitable color #}
+             {% elif a.action == 'update_password' %}
+                <span class="badge action-pay">MàJ Mot de Passe</span> {# Use a suitable color #}
+            {% else %}
+              <span class="badge status-inactive">{{ a.action }}</span> {# Default grey badge #}
+            {% endif %}
+            {# --- END FIX --- #}
+          </td>
+          <td>
+             {# --- FIX: Improved Entity Display --- #}
+            {% if a.entity == 'leave' %} <span class="badge action-leave">Congé</span>
+            {% elif a.entity == 'deposit' %} <span class="badge action-deposit">Avance</span>
+            {% elif a.entity == 'pay' %} <span class="badge action-pay">Paiement</span>
+            {% elif a.entity == 'attendance' %} <span class="badge ltype-unpaid">Absence</span>
+            {% elif a.entity == 'loan' %} <span class="badge" style="background: rgba(33,212,253,.2); color:#d2f7ff;">Prêt</span> {# Example blue badge #}
+            {% elif a.entity == 'employee' %} <span class="badge btn-gold" style="color: #333;">Employé</span> {# Gold badge #}
+            {% elif a.entity == 'user' %} <span class="badge btn-secondary">Utilisateur</span> {# Secondary badge #}
+            {% elif a.entity == 'role' %} <span class="badge btn-secondary">Rôle</span>
+            {% elif a.entity == 'all_logs' %} <span class="badge btn-danger">Journaux</span>
+            {% else %} <span class="badge status-inactive">{{ a.entity }}</span>
+            {% endif %}
+            {# Optionally add ID #}
+            {% if a.entity_id and a.entity != 'all_logs' %} #{{ a.entity_id }}{% endif %}
+            {# --- END FIX --- #}
+          </td>
           <td class="details">{{ a.details or '-' }}</td>
         </tr>
         {% endfor %}
@@ -37,7 +105,7 @@
     </table>
   </div>
   {% else %}
-  <p class="no-data">Aucune activité récente à afficher.</p>
+  <p class="no-data" style="padding-top: 1rem;">Aucune activité récente à afficher.</p> {# Added padding #}
   {% endif %}
 </div>
 {% endif %}
