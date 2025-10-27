@@ -1,12 +1,10 @@
-"""
-Point d'entrée de l'application FastAPI pour la gestion RH de la Bijouterie.
-"""
 import os
 from datetime import timedelta, date as dt_date, datetime
 from decimal import Decimal
 from typing import Annotated, List, Optional
 import json
 import enum # Ajout de l'import enum manquant
+import traceback # Pour un meilleur logging d'erreur
 
 from fastapi import Depends, FastAPI, Form, HTTPException, Request, status, APIRouter, UploadFile, File
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
@@ -17,7 +15,7 @@ from sqlalchemy import select, delete, func, case, extract, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from sqlalchemy.future import select
-from . import models, schemas
+from . import models, schemas # Keep this general import if other parts of the file use models.XXX
 import io # Importé pour l'export
 
 # --- CORRIGÉ : Import de get_db depuis .deps ---
@@ -25,17 +23,27 @@ from .db import engine, Base, AsyncSessionLocal
 # --- CORRIGÉ : Import de hash_password ---
 from .auth import authenticate_user, create_access_token, hash_password, ACCESS_TOKEN_EXPIRE_MINUTES, api_require_permission
 
-# Importer TOUS les modèles nécessaires
-from .models import Role, PayType, AttendanceType, LeaveType, LoanStatus, LoanTermUnit, ScheduleStatus, RepaymentSource, User, Branch, Employee, Attendance, Leave, Deposit, Pay, Loan, LoanSchedule, LoanRepayment, AuditLog
+# Importer TOUS les modèles nécessaires (including Role and Enums explicitly)
+from .models import (
+    Role, PayType, AttendanceType, LeaveType, LoanStatus, LoanTermUnit, ScheduleStatus,
+    RepaymentSource, User, Branch, Employee, Attendance, Leave, Deposit, Pay, Loan,
+    LoanSchedule, LoanRepayment, AuditLog, LoanInterestType # Added missing Enums like LoanInterestType
+)
+# Import Schemas needed in main.py
+from .schemas import RoleCreate, RoleUpdate, LoanCreate, RepaymentCreate
+
+# --- FIX: Import audit functions ---
+from .audit import latest, log
+# --- END FIX ---
+
+# Import Routers
 from .routers import users, branches, employees as employees_api, attendance as attendance_api, leaves as leaves_api, deposits as deposits_api
 # --- MODIFIÉ : Importer les nouvelles dépendances ---
 from .deps import get_db, web_require_permission, get_current_session_user
-# --- LOANS ---
+# --- LOANS API Router ---
 from app.api import loans as loans_api
-# Mettez à jour les imports de models et schemas
-from app.models import Employee, Loan, LoanSchedule, LoanRepayment
-from app.schemas import LoanCreate, RepaymentCreate
-from .schemas import RoleCreate, RoleUpdate
+# Note: Redundant imports like `from app.models import Employee...` are removed as they are covered by `from .models import ...`
+
 # --- FIN MODIFIÉ ---
 
 
