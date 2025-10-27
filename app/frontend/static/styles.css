@@ -599,21 +599,29 @@ td.amount{ font-weight:800; }
 }
 .theme-toggle:hover{ transform: translateY(-1px); box-shadow: var(--shadow-1); }
 
+/* =========================================
+   FIX: Modal Button Clickability Issue
+   ========================================= */
+
+/* Ensure modal content is above backdrop */
 .modal-content {
-  z-index: 1056; /* Slightly higher than default backdrop (1050) and modal (1055) */
-  position: relative; /* Needed for z-index to work reliably on static elements */
+  z-index: 1060; /* Increased z-index */
+  position: relative;
 }
 
 /* Ensure modal footer and buttons inside are clickable */
-.modal-footer,
+.modal-footer {
+  position: relative; /* Make sure footer establishes stacking context */
+  z-index: 1061; /* Higher than modal-content */
+}
+
 .modal-footer .btn {
   pointer-events: auto !important; /* Force enable click/hover events */
-  z-index: 1057; /* Ensure footer buttons are definitely on top within the modal */
-  position: relative; /* May help ensure z-index applies */
+  z-index: 1062; /* Ensure buttons are highest */
+  position: relative;
 }
 
-/* Just in case the backdrop is somehow interfering */
+/* Explicitly set backdrop z-index */
 .modal-backdrop {
-   z-index: 1050; /* Explicitly set default Bootstrap backdrop z-index */
+   z-index: 1050; /* Default Bootstrap backdrop z-index */
 }
-
