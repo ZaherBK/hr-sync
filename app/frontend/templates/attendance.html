@@ -89,8 +89,8 @@
     {% endif %}
 </div> {# <-- End of card table-card div --> #}
 
-{# --- MODALS MOVED HERE (Outside the card) --- #}
-{% if attendance %} {# Check again if attendance exists before looping for modals #}
+{# --- MODALS (Generate only if user is admin, as only admin can trigger them) --- #}
+{% if user.permissions.is_admin and attendance %} {# Check again if attendance exists before looping #}
   {% for a in attendance %}
   <div class="modal fade" id="deleteAttendanceModal-{{ a.id }}" tabindex="-1" aria-labelledby="deleteAttendanceModalLabel-{{ a.id }}" aria-hidden="true">
     <div class="modal-dialog">
@@ -117,6 +117,6 @@
   </div>
   {% endfor %}
 {% endif %}
-{# --- END OF MOVED MODALS --- #}
+{# --- END OF MODALS --- #}
 
 {% endblock %}
