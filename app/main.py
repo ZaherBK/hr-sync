@@ -112,10 +112,10 @@ async def on_startup() -> None:
         async with AsyncSessionLocal() as session:
             res_admin_role = await session.execute(select(Role).where(Role.name == "Admin"))
             admin_role = res_admin_role.scalar_one_or_none()
-            
+
             if not admin_role:
                 print("Base de données vide, ajout des rôles et utilisateurs initiaux (seed)...")
-                
+
                 admin_role = Role(
                     name="Admin", is_admin=True, can_manage_users=True, can_manage_roles=True,
                     can_manage_branches=True, can_view_settings=True, can_clear_logs=True,
@@ -131,50 +131,42 @@ async def on_startup() -> None:
                     can_manage_loans=True
                 )
                 session.add_all([admin_role, manager_role])
-                await session.flush()
+                await session.flush() # Assigner les IDs aux roles
 
+                # Créer les branches même si on ne crée pas les managers par défaut
                 res_branch = await session.execute(select(Branch).where(Branch.name == "Magasin Ariana"))
                 branch_ariana = res_branch.scalar_one_or_none()
-                
+
                 if not branch_ariana:
                     print("Ajout des magasins par défaut...")
                     branch_ariana = Branch(name="Magasin Ariana", city="Ariana")
                     branch_nabeul = Branch(name="Magasin Nabeul", city="Nabeul")
                     session.add_all([branch_ariana, branch_nabeul])
-                    await session.flush()
-                else:
-                    print("Magasins déjà présents, récupération...")
-                    res_nabeul = await session.execute(select(Branch).where(Branch.name == "Magasin Nabeul"))
-                    branch_nabeul = res_nabeul.scalar_one()
+                    await session.flush() # Assigner les IDs aux branches
+                # Pas besoin de else ici, si elles existent déjà, c'est bon.
 
                 res_admin_user = await session.execute(select(User).where(User.email == "zaher@local"))
-                
+
                 if res_admin_user.scalar_one_or_none() is None:
-                    print("Ajout des utilisateurs initiaux...")
-                    users_to_create = [
-                        User(
+                    print("Ajout de l'utilisateur admin initial...")
+                    # --- FIX: Créer seulement l'utilisateur Admin ---
+                    admin_user = User(
                             email="zaher@local", full_name="Zaher (Admin)", role_id=admin_role.id,
                             hashed_password=hash_password("zah1405"), is_active=True, branch_id=None
-                        ),
-                        User(
-                            email="ariana@local", full_name="Ariana (Manager)", role_id=manager_role.id,
-                            hashed_password=hash_password("ar123"), is_active=True, branch_id=branch_ariana.id
-                        ),
-                        User(
-                            email="nabeul@local", full_name="Nabeul (Manager)", role_id=manager_role.id,
-                            hashed_password=hash_password("na123"), is_active=True, branch_id=branch_nabeul.id
-                        ),
-                    ]
-                    session.add_all(users_to_create)
+                        )
+                    session.add(admin_user)
+                    # --- FIN DU FIX ---
                     await session.commit()
-                    print(f"✅ Rôles, Magasins et {len(users_to_create)} utilisateurs créés avec succès !")
+                    print(f"✅ Rôles, Magasins et l'utilisateur Admin créés avec succès !")
                 else:
                     print("Utilisateur admin déjà présent, commit des rôles/magasins si nécessaire.")
-                    await session.commit()
+                    await session.commit() # Commit au cas où les roles/branches ont été créés
             else:
                 print("Données initiales déjà présentes. Seeding ignoré.")
     except Exception as e:
         print(f"Erreur pendant le seeding initial : {e}")
+        import traceback
+        traceback.print_exc() # Print full traceback for debugging
         await session.rollback()
 
 
