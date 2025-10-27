@@ -452,6 +452,55 @@ async def attendance_create(
 
     return RedirectResponse(request.url_for('attendance_page'), status_code=status.HTTP_302_FOUND)
 
+@app.post("/attendance/{attendance_id}/delete", name="attendance_delete")
+async def attendance_delete(
+    request: Request,
+    attendance_id: int,
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(web_require_permission("can_manage_absences")) # Ensure correct permission
+):
+    """Supprime un enregistrement d'absence."""
+
+    # Fetch the attendance record along with the employee to check branch permission
+    attendance_query = select(Attendance).options(selectinload(Attendance.employee)).where(Attendance.id == attendance_id)
+    permissions = user.get("permissions", {})
+    if not permissions.get("is_admin"):
+        # Non-admin can only delete if the employee belongs to their branch
+        attendance_query = attendance_query.join(Employee).where(Employee.branch_id == user.get("branch_id"))
+
+    res_att = await db.execute(attendance_query)
+    attendance_to_delete = res_att.scalar_one_or_none()
+
+    if attendance_to_delete:
+        try:
+            employee_name = f"{attendance_to_delete.employee.first_name} {attendance_to_delete.employee.last_name}" if attendance_to_delete.employee else f"ID {attendance_to_delete.employee_id}"
+            attendance_date = attendance_to_delete.date
+            emp_branch_id = attendance_to_delete.employee.branch_id if attendance_to_delete.employee else None
+
+            await db.delete(attendance_to_delete)
+            await db.commit()
+
+            # Log the deletion
+            await log(
+                db, user['id'], "delete", "attendance", attendance_id,
+                emp_branch_id, f"Absence supprimée pour {employee_name} le {attendance_date}"
+            )
+            await db.commit() # Commit the log entry
+
+            print(f"✅ Absence ID={attendance_id} supprimée avec succès.")
+
+        except Exception as e:
+            await db.rollback()
+            print(f"ERREUR lors de la suppression de l'absence ID={attendance_id}: {e}")
+            traceback.print_exc()
+            # Optionally add a flash message here
+
+    else:
+        # Attendance record not found or user doesn't have permission
+        print(f"Tentative de suppression de l'absence ID={attendance_id} échouée (non trouvée ou accès refusé).")
+
+    # Redirect back to the attendance list page
+    return RedirectResponse(request.url_for("attendance_page"), status_code=status.HTTP_302_FOUND)
 
 # --- Avances (Deposits) ---
 # ... (Deposits routes remain the same - not shown for brevity) ...
