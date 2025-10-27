@@ -26,9 +26,7 @@ from .db import engine, Base, AsyncSessionLocal
 from .auth import authenticate_user, create_access_token, hash_password, ACCESS_TOKEN_EXPIRE_MINUTES, api_require_permission
 
 # Importer TOUS les modèles nécessaires
-from .models import PayType, AttendanceType, LeaveType, LoanStatus, LoanTermUnit, ScheduleStatus, RepaymentSource, User, Branch, Employee, Attendance, Leave, Deposit, Pay, Loan, LoanSchedule, LoanRepayment, AuditLog # Corrected Enum name
-
-from .audit import latest, log
+from .models import Role, PayType, AttendanceType, LeaveType, LoanStatus, LoanTermUnit, ScheduleStatus, RepaymentSource, User, Branch, Employee, Attendance, Leave, Deposit, Pay, Loan, LoanSchedule, LoanRepayment, AuditLog
 from .routers import users, branches, employees as employees_api, attendance as attendance_api, leaves as leaves_api, deposits as deposits_api
 # --- MODIFIÉ : Importer les nouvelles dépendances ---
 from .deps import get_db, web_require_permission, get_current_session_user
@@ -37,6 +35,7 @@ from app.api import loans as loans_api
 # Mettez à jour les imports de models et schemas
 from app.models import Employee, Loan, LoanSchedule, LoanRepayment
 from app.schemas import LoanCreate, RepaymentCreate
+from .schemas import RoleCreate, RoleUpdate
 # --- FIN MODIFIÉ ---
 
 
