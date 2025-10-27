@@ -7,15 +7,29 @@ currently authenticated user for route handlers.
 from fastapi import Depends, HTTPException, Request, Response, status
 from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
+from app.db import AsyncSessionLocal
+from typing import AsyncGenerator
 
 from .db import get_session
 from .auth import get_current_user
 from .models import User
 
 
-async def get_db(session: AsyncSession = Depends(get_session)) -> AsyncSession:
-    """FastAPI dependency that yields a database session."""
-    return session
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
+    """
+    Dependency function that yields an async SQLAlchemy session.
+    Ensures the session is closed even if errors occur.
+    """
+    async with AsyncSessionLocal() as session:
+        try:
+            yield session
+            # You could commit here if needed, but often commits happen in routes
+            # await session.commit() 
+        except Exception:
+            await session.rollback() # Rollback on any error during the request
+            raise
+        # The 'async with' block ensures the session is closed automatically here,
+        # whether the request succeeded or failed.
 
 
 async def api_current_user(user: User = Depends(get_current_user)) -> User:
