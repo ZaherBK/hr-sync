@@ -889,6 +889,63 @@ async def pay_employee_action(
         status_code=status.HTTP_302_FOUND
     )
 
+@app.post("/pay-history/{pay_id}/delete", name="pay_history_delete")
+async def pay_history_delete(
+    request: Request,
+    pay_id: int,
+    db: AsyncSession = Depends(get_db),
+    # Only Admin should delete pay records directly? Adjust permission if needed.
+    user: dict = Depends(web_require_permission("is_admin")),
+    # Get employee_id from form to redirect back correctly
+    employee_id: int = Form(...)
+):
+    """Supprime un enregistrement de l'historique de paie."""
+
+    # Fetch the pay record along with the employee to check permissions if needed
+    # Since only admin can delete, we might not need detailed permission check here,
+    # but fetching employee helps with logging.
+    pay_query = select(Pay).options(selectinload(Pay.employee)).where(Pay.id == pay_id)
+
+    res_pay = await db.execute(pay_query)
+    pay_to_delete = res_pay.scalar_one_or_none()
+
+    redirect_url = request.url_for("employee_report_index")
+    if employee_id:
+        redirect_url = str(redirect_url) + f"?employee_id={employee_id}"
+
+
+    if pay_to_delete:
+        try:
+            # Get info for logging before deleting
+            employee_name = f"{pay_to_delete.employee.first_name} {pay_to_delete.employee.last_name}" if pay_to_delete.employee else f"ID {pay_to_delete.employee_id}"
+            pay_date = pay_to_delete.date
+            pay_amount = pay_to_delete.amount
+            emp_branch_id = pay_to_delete.employee.branch_id if pay_to_delete.employee else None
+
+            await db.delete(pay_to_delete)
+            await db.commit()
+
+            # Log the deletion
+            await log(
+                db, user['id'], "delete", "pay", pay_id, # Use 'pay' as entity type
+                emp_branch_id, f"Paiement supprimé ({pay_amount} TND) pour {employee_name} du {pay_date}"
+            )
+            await db.commit() # Commit the log entry
+
+            print(f"✅ Paiement ID={pay_id} supprimé avec succès.")
+
+        except Exception as e:
+            await db.rollback()
+            print(f"ERREUR lors de la suppression du paiement ID={pay_id}: {e}")
+            traceback.print_exc()
+            # Optionally add a flash message here
+
+    else:
+        # Pay record not found
+        print(f"Tentative de suppression du paiement ID={pay_id} échouée (non trouvé).")
+
+    # Redirect back to the specific employee's report page
+    return RedirectResponse(redirect_url, status_code=status.HTTP_302_FOUND)
 
 # --- Gestion des Rôles ---
 # ... (Roles routes remain the same - not shown for brevity) ...
