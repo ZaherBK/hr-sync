@@ -6,7 +6,7 @@ services:
     environment:
       DATABASE_URL: "postgresql+asyncpg://neondb_owner:YOUR_PASSWORD@ep-weathered-recipe-agaj3m4t-pooler.c-2.eu-central-1.aws.neon.tech/hrdb?ssl=true"
       SECRET_KEY: "${SECRET_KEY}"
-      APP_NAME: "HR Sync"
+      APP_NAME: "Bijouterie Zaher"
     ports:
       - "${PORT:-8000}:8000"
           restart: always
