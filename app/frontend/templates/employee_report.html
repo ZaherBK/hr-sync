@@ -106,8 +106,9 @@
       <div class="modal-dialog">
         <div class="modal-content card">
           {# --- FIX: Point to new report-specific delete route --- #}
-          <form action="{{ url_for('pay_history_delete', pay_id=p.id) }}" method="POST">
+          <form action="{{ url_for('pay_delete_report', pay_id=p.id) }}" method="POST">
              {# Hidden field to pass employee_id back for redirection #}
+            <input type="hidden" name="employee_id" value="{{ selected_employee.id }}">
             <div class="modal-header">
               <h5 class="modal-title" id="deletePayModalLabel-{{ p.id }}">Confirmer la Suppression</h5>
               <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" style="background-color: white;"></button>
@@ -182,7 +183,8 @@
       <div class="modal-dialog">
         <div class="modal-content card">
           {# --- FIX: Point to new report-specific delete route --- #}
-          <form action="{{ url_for('deposits_delete', deposit_id=d.id) }}" method="POST">
+          <form action="{{ url_for('deposits_delete_report', deposit_id=d.id) }}" method="POST">
+             <input type="hidden" name="employee_id" value="{{ selected_employee.id }}">
             <div class="modal-header">
               <h5 class="modal-title" id="deleteDepositModalLabel-{{ d.id }}">Confirmer la Suppression</h5>
               <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" style="background-color: white;"></button>
@@ -255,7 +257,8 @@
       <div class="modal-dialog">
         <div class="modal-content card">
           {# --- FIX: Point to new report-specific delete route --- #}
-          <form action="{{ url_for('attendance_delete', attendance_id=a.id) }}" method="POST">
+          <form action="{{ url_for('attendance_delete_report', attendance_id=a.id) }}" method="POST">
+             <input type="hidden" name="employee_id" value="{{ selected_employee.id }}">
             <div class="modal-header">
               <h5 class="modal-title" id="deleteAttendanceModalLabel-{{ a.id }}">Confirmer la Suppression</h5>
               <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" style="background-color: white;"></button>
@@ -324,7 +327,7 @@
           <td>
              <div class="form-actions" style="justify-content: flex-start; gap: 0.5rem;">
                 {% if not l.approved %}
-                 {# --- FIX: Pass employee_id back for redirect --- #}
+                 {# --- FIX: Pass employee_id back for redirect using query param --- #}
                  <form method="post" action="{{ request.url_for('leaves_approve', leave_id=l.id) }}?employee_id={{ selected_employee.id }}" style="display: inline;">
                    <button type="submit" class="btn btn-success btn-sm">
                      <i class="fa-solid fa-thumbs-up"></i> Approuver
@@ -350,7 +353,8 @@
       <div class="modal-dialog">
         <div class="modal-content card">
            {# --- FIX: Point to new report-specific delete route --- #}
-          <form action="{{ url_for('leaves_delete', leave_id=l.id) }}" method="POST">
+          <form action="{{ url_for('leaves_delete_report', leave_id=l.id) }}" method="POST">
+            <input type="hidden" name="employee_id" value="{{ selected_employee.id }}">
             <div class="modal-header">
               <h5 class="modal-title" id="deleteLeaveModalLabel-{{ l.id }}">Confirmer la Suppression</h5>
               <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" style="background-color: white;"></button>
@@ -435,7 +439,8 @@
       <div class="modal-dialog">
         <div class="modal-content card">
            {# --- FIX: Point to new report-specific delete route --- #}
-          <form action="{{ url_for('loan_delete_web', loan_id=loan.id) }}" method="POST">
+          <form action="{{ url_for('loans_delete_report', loan_id=loan.id) }}" method="POST">
+             <input type="hidden" name="employee_id" value="{{ selected_employee.id }}">
             <div class="modal-header">
               <h5 class="modal-title" id="deleteLoanModalLabel-{{ loan.id }}">Confirmer la Suppression</h5>
               <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" style="background-color: white;"></button>
@@ -519,4 +524,3 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {% endblock %}
-
