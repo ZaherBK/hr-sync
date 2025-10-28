@@ -9,19 +9,20 @@
     <div class="form-row">
       <div class="form-group">
         <label for="employee_id">Employé</label>
+        {# --- FIX: Added current_employee_id for selection logic --- #}
         <select id="employee_id" name="employee_id" onchange="this.form.submit()" class="form-select">
-          <option value="" disabled {% if not selected_employee %}selected{% endif %}>
+          <option value="" disabled {% if not current_employee_id %}selected{% endif %}>
             -- Choisir un employé pour voir son rapport --
           </option>
           {% for e in employees %}
-          <option value="{{ e.id }}" {% if selected_employee and e.id == selected_employee.id %}selected{% endif %}>
+          <option value="{{ e.id }}" {% if current_employee_id and e.id == current_employee_id %}selected{% endif %}>
             {{ e.first_name }} {{ e.last_name }} ({{ e.cin or 'Pas de CIN' }})
           </option>
           {% endfor %}
         </select>
       </div>
       <div class="form-group">
-        <label>&nbsp;</label>
+        <label>&nbsp;</label> {# Empty label for alignment #}
         <button type="submit" class="btn btn-primary">
           <i class="fa-solid fa-search"></i> Afficher Rapport
         </button>
@@ -37,10 +38,10 @@
     <p><strong>ID:</strong> {{ selected_employee.id }}</p>
     <p><strong>CIN:</strong> {{ selected_employee.cin or '-' }}</p>
     <p><strong>Poste:</strong> {{ selected_employee.position }}</p>
-    <p><strong>Salaire de Base:</strong> <span class="amount">{{ "%.2f"|format(selected_employee.salary|float) if selected_employee.salary else '-' }} TND</span></p>
-    <p><strong>Statut:</strong> 
+    <p><strong>Salaire de Base:</strong> <span class="amount">{{ "%.2f TND"|format(selected_employee.salary|float) if selected_employee.salary else '-' }}</span></p> {# Added TND #}
+    <p><strong>Statut:</strong>
       {% if selected_employee.active %}
-        <span class="badge status-active">Actif</span>
+        <span class="badge action-create">Actif</span> {# Use action-create style #}
       {% else %}
         <span class="badge status-inactive">Inactif</span>
       {% endif %}
@@ -48,20 +49,34 @@
   </div>
 </div>
 
-<div class="tabs-luxe">
+{# --- FIX: Applied correct class for tabs --- #}
+<div class="luxe-tabs">
   <a href="#paie" class="tab-link active"><i class="fa-solid fa-coins"></i> Paie</a>
   <a href="#avances" class="tab-link"><i class="fa-solid fa-hand-holding-dollar"></i> Avances</a>
   <a href="#absences" class="tab-link"><i class="fa-regular fa-calendar-xmark"></i> Absences</a>
   <a href="#conges" class="tab-link"><i class="fa-solid fa-umbrella-beach"></i> Congés</a>
+  {# --- NOUVEAU: Tab Prêts --- #}
+  <a href="#prets" class="tab-link"><i class="fa-solid fa-landmark"></i> Prêts</a>
 </div>
 
+{# --- Tab Content: Paie --- #}
 <div id="paie" class="tab-content card active">
   <h4 class="section-title"><i class="fa-solid fa-hand-holding-dollar"></i> Historique de Paie</h4>
   <div class="section-body">
     {% if pay_history and pay_history|length > 0 %}
     <div class="table-responsive">
     <table>
-      <thead><tr><th>Date</th><th>Type</th><th>Montant (TND)</th><th>Note</th><th>Enregistré le</th></tr></thead>
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Type</th>
+          <th>Montant (TND)</th>
+          <th>Note</th>
+          <th>Enregistré le</th>
+          {# --- NOUVEAU: Colonne Actions (Admin) --- #}
+          {% if user.permissions.is_admin %}<th>Actions</th>{% endif %}
+        </tr>
+      </thead>
       <tbody>
         {% for p in pay_history %}
         <tr>
@@ -70,22 +85,75 @@
           <td class="amount">{{ "%.2f"|format(p.amount|float) }}</td>
           <td>{{ p.note or '-' }}</td>
           <td class="timestamp">{{ p.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+          {# --- NOUVEAU: Bouton Supprimer (Admin) --- #}
+          {% if user.permissions.is_admin %}
+          <td>
+             <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deletePayModal-{{ p.id }}">
+               Supprimer
+             </button>
+          </td>
+          {% endif %}
+          {# --- FIN NOUVEAU --- #}
         </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
+  {# --- NOUVEAU: Modals Paie (Admin) --- #}
+  {% if user.permissions.is_admin %}
+    {% for p in pay_history %}
+    <div class="modal fade" id="deletePayModal-{{ p.id }}" tabindex="-1" aria-labelledby="deletePayModalLabel-{{ p.id }}" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content card">
+          <form action="{{ url_for('pay_history_delete', pay_id=p.id) }}" method="POST">
+             {# Hidden field to pass employee_id back for redirection #}
+            <input type="hidden" name="employee_id" value="{{ selected_employee.id }}">
+            <div class="modal-header">
+              <h5 class="modal-title" id="deletePayModalLabel-{{ p.id }}">Confirmer la Suppression</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" style="background-color: white;"></button>
+            </div>
+            <div class="modal-body">
+              <p>Êtes-vous sûr de vouloir supprimer le paiement de
+                 <strong>{{ "%.2f TND"|format(p.amount|float) }}</strong> du
+                 <strong>{{ p.date.strftime('%Y-%m-%d') }}</strong> pour
+                 <strong>{{ selected_employee.first_name }} {{ selected_employee.last_name }}</strong> ?
+              </p>
+              <p class="text-danger">Cette action est irréversible.</p>
+            </div>
+            <div class="modal-footer form-actions">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+              <button type="submit" class="btn btn-danger">Oui, Supprimer</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  {% endif %}
+  {# --- FIN NOUVEAU --- #}
   {% else %}
     <p class="no-data" style="padding:1rem;">Aucun historique de paie pour cet employé.</p>
   {% endif %}
 </div>
-</div> <div id="avances" class="tab-content card">
+</div>
+
+{# --- Tab Content: Avances --- #}
+<div id="avances" class="tab-content card">
   <h4 class="section-title"><i class="fa-solid fa-money-bill-transfer"></i> Historique des Avances</h4>
   <div class="section-body">
     {% if deposits and deposits|length > 0 %}
     <div class="table-responsive">
     <table>
-      <thead><tr><th>Date</th><th>Montant (TND)</th><th>Note</th><th>Enregistré le</th></tr></thead>
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Montant (TND)</th>
+          <th>Note</th>
+          <th>Enregistré le</th>
+          {# --- NOUVEAU: Colonne Actions (Admin) --- #}
+          {% if user.permissions.is_admin %}<th>Actions</th>{% endif %}
+        </tr>
+      </thead>
       <tbody>
         {% for d in deposits %}
         <tr>
@@ -93,44 +161,146 @@
           <td class="amount">{{ "%.2f"|format(d.amount|float) }}</td>
           <td>{{ d.note or '-' }}</td>
           <td class="timestamp">{{ d.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+          {# --- NOUVEAU: Bouton Supprimer (Admin) --- #}
+          {% if user.permissions.is_admin %}
+          <td>
+             <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteDepositModal-{{ d.id }}">
+               Supprimer
+             </button>
+          </td>
+          {% endif %}
+          {# --- FIN NOUVEAU --- #}
         </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
+   {# --- NOUVEAU: Modals Avances (Admin) --- #}
+  {% if user.permissions.is_admin %}
+    {% for d in deposits %}
+    <div class="modal fade" id="deleteDepositModal-{{ d.id }}" tabindex="-1" aria-labelledby="deleteDepositModalLabel-{{ d.id }}" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content card">
+          <form action="{{ url_for('deposits_delete', deposit_id=d.id) }}" method="POST">
+             <input type="hidden" name="employee_id" value="{{ selected_employee.id }}">
+            <div class="modal-header">
+              <h5 class="modal-title" id="deleteDepositModalLabel-{{ d.id }}">Confirmer la Suppression</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" style="background-color: white;"></button>
+            </div>
+            <div class="modal-body">
+               <p>Êtes-vous sûr de vouloir supprimer l'avance de
+                 <strong>{{ "%.2f TND"|format(d.amount|float) }}</strong> du
+                 <strong>{{ d.date.strftime('%Y-%m-%d') }}</strong> pour
+                 <strong>{{ selected_employee.first_name }} {{ selected_employee.last_name }}</strong> ?
+              </p>
+              <p class="text-danger">Cette action est irréversible.</p>
+            </div>
+            <div class="modal-footer form-actions">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+              <button type="submit" class="btn btn-danger">Oui, Supprimer</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  {% endif %}
+  {# --- FIN NOUVEAU --- #}
   {% else %}
       <p class="no-data" style="padding:1rem;">Aucune avance pour cet employé.</p>
   {% endif %}
 </div>
-</div> <div id="absences" class="tab-content card">
+</div>
+
+{# --- Tab Content: Absences --- #}
+<div id="absences" class="tab-content card">
   <h4 class="section-title"><i class="fa-regular fa-calendar-xmark"></i> Historique des Absences</h4>
   <div class="section-body">
     {% if absences and absences|length > 0 %}
     <div class="table-responsive">
     <table>
-      <thead><tr><th>Date</th><th>Note</th><th>Enregistré le</th></tr></thead>
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Note</th>
+          <th>Enregistré le</th>
+          {# --- NOUVEAU: Colonne Actions (Admin) --- #}
+          {% if user.permissions.is_admin %}<th>Actions</th>{% endif %}
+        </tr>
+      </thead>
       <tbody>
         {% for a in absences %}
         <tr>
           <td>{{ a.date.strftime('%Y-%m-%d') }}</td>
           <td>{{ a.note or '-' }}</td>
           <td class="timestamp">{{ a.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+           {# --- NOUVEAU: Bouton Supprimer (Admin) --- #}
+          {% if user.permissions.is_admin %}
+          <td>
+             <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteAttendanceModal-{{ a.id }}">
+               Supprimer
+             </button>
+          </td>
+          {% endif %}
+          {# --- FIN NOUVEAU --- #}
         </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
+  {# --- NOUVEAU: Modals Absences (Admin) --- #}
+  {% if user.permissions.is_admin %}
+    {% for a in absences %}
+    <div class="modal fade" id="deleteAttendanceModal-{{ a.id }}" tabindex="-1" aria-labelledby="deleteAttendanceModalLabel-{{ a.id }}" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content card">
+          <form action="{{ url_for('attendance_delete', attendance_id=a.id) }}" method="POST">
+             <input type="hidden" name="employee_id" value="{{ selected_employee.id }}">
+            <div class="modal-header">
+              <h5 class="modal-title" id="deleteAttendanceModalLabel-{{ a.id }}">Confirmer la Suppression</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" style="background-color: white;"></button>
+            </div>
+            <div class="modal-body">
+               <p>Êtes-vous sûr de vouloir supprimer l'absence du
+                 <strong>{{ a.date.strftime('%Y-%m-%d') }}</strong> pour
+                 <strong>{{ selected_employee.first_name }} {{ selected_employee.last_name }}</strong> ?
+              </p>
+              <p class="text-danger">Cette action est irréversible.</p>
+            </div>
+            <div class="modal-footer form-actions">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+              <button type="submit" class="btn btn-danger">Oui, Supprimer</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  {% endif %}
+  {# --- FIN NOUVEAU --- #}
   {% else %}
     <p class="no-data" style="padding:1rem;">Aucune absence enregistrée pour cet employé.</p>
   {% endif %}
 </div>
-</div> <div id="conges" class="tab-content card">
+</div>
+
+{# --- Tab Content: Conges --- #}
+<div id="conges" class="tab-content card">
   <h4 class="section-title"><i class="fa-solid fa-umbrella-beach"></i> Historique des Congés</h4>
   <div class="section-body">
     {% if leaves and leaves|length > 0 %}
     <div class="table-responsive">
     <table>
-      <thead><tr><th>Date Début</th><th>Date Fin</th><th>Type</th><th>Statut</th></tr></thead>
+      <thead>
+        <tr>
+          <th>Date Début</th>
+          <th>Date Fin</th>
+          <th>Type</th>
+          <th>Statut</th>
+           {# --- NOUVEAU: Colonne Actions (Admin) --- #}
+          {% if user.permissions.is_admin %}<th>Actions</th>{% endif %}
+        </tr>
+      </thead>
       <tbody>
         {% for l in leaves %}
         <tr>
@@ -144,27 +314,167 @@
           </td>
           <td>
             {% if l.approved %}
-              <span class="badge status-approved"><i class="fa-solid fa-check"></i> Approuvé</span>
+              <span class="badge action-approve"><i class="fa-solid fa-check"></i> Approuvé</span>
             {% else %}
-              <span class="badge status-pending"><i class="fa-regular fa-clock"></i> En attente</span>
+              <span class="badge status-inactive"><i class="fa-regular fa-clock"></i> En attente</span>
             {% endif %}
           </td>
+          {# --- NOUVEAU: Boutons Approuver/Supprimer (Admin) --- #}
+          {% if user.permissions.is_admin %}
+          <td>
+             <div class="form-actions" style="justify-content: flex-start; gap: 0.5rem;">
+                {% if not l.approved %}
+                 <form method="post" action="{{ request.url_for('leaves_approve', leave_id=l.id) }}" style="display: inline;">
+                     {# Hidden field needed if approve redirects back here #}
+                    <input type="hidden" name="employee_id" value="{{ selected_employee.id }}">
+                   <button type="submit" class="btn btn-success btn-sm">
+                     <i class="fa-solid fa-thumbs-up"></i> Approuver
+                   </button>
+                 </form>
+                {% endif %}
+                 <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteLeaveModal-{{ l.id }}">
+                   Supprimer
+                 </button>
+             </div>
+          </td>
+          {% endif %}
+          {# --- FIN NOUVEAU --- #}
         </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
+   {# --- NOUVEAU: Modals Congés (Admin) --- #}
+  {% if user.permissions.is_admin %}
+    {% for l in leaves %}
+    <div class="modal fade" id="deleteLeaveModal-{{ l.id }}" tabindex="-1" aria-labelledby="deleteLeaveModalLabel-{{ l.id }}" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content card">
+          <form action="{{ url_for('leaves_delete', leave_id=l.id) }}" method="POST">
+            <input type="hidden" name="employee_id" value="{{ selected_employee.id }}">
+            <div class="modal-header">
+              <h5 class="modal-title" id="deleteLeaveModalLabel-{{ l.id }}">Confirmer la Suppression</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" style="background-color: white;"></button>
+            </div>
+            <div class="modal-body">
+              <p>Êtes-vous sûr de vouloir supprimer la demande de congé du
+                 <strong>{{ l.start_date.strftime('%Y-%m-%d') }}</strong> au <strong>{{ l.end_date.strftime('%Y-%m-%d') }}</strong> pour
+                 <strong>{{ selected_employee.first_name }} {{ selected_employee.last_name }}</strong> ?
+              </p>
+              <p class="text-danger">Cette action est irréversible.</p>
+            </div>
+            <div class="modal-footer form-actions">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+              <button type="submit" class="btn btn-danger">Oui, Supprimer</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  {% endif %}
+  {# --- FIN NOUVEAU --- #}
   {% else %}
     <p class="no-data" style="padding:1rem;">Aucun congé enregistré pour cet employé.</p>
   {% endif %}
 </div>
-</div> {% endif %}
+</div>
+
+{# --- NOUVEAU: Tab Prêts --- #}
+<div id="prets" class="tab-content card">
+ <h4 class="section-title"><i class="fa-solid fa-landmark"></i> Historique des Prêts</h4>
+  <div class="section-body">
+    {% if loans and loans|length > 0 %}
+    <div class="table-responsive">
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Date Début</th>
+          <th>Montant Principal</th>
+          <th>Montant Remboursé</th>
+          <th>Solde Restant</th>
+          <th>Statut</th>
+          {# --- NOUVEAU: Colonne Actions (Admin) --- #}
+          {% if user.permissions.is_admin %}<th>Actions</th>{% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for loan in loans %}
+        <tr>
+          <td><a href="{{ url_for('loan_detail_page', loan_id=loan.id) }}">{{ loan.id }}</a></td>
+          <td class="timestamp">{{ loan.start_date.strftime('%Y-%m-%d') }}</td>
+          <td class="amount">{{ "%.2f TND"|format(loan.principal|float) }}</td>
+          <td class="amount">{{ "%.2f TND"|format(loan.repaid_total|float) }}</td>
+          <td class="amount" style="color: var(--gold);">{{ "%.2f TND"|format(loan.principal - loan.repaid_total) }}</td>
+          <td>
+             <span class="badge
+              {% if loan.status.value == 'active' or loan.status.value == 'approved' or loan.status.value == 'approuvé' %}action-create
+              {% elif loan.status.value == 'paid' %}action-approve
+              {% else %}status-inactive{% endif %}">
+              {{ loan.status.value }}
+            </span>
+          </td>
+           {# --- NOUVEAU: Bouton Supprimer (Admin) --- #}
+          {% if user.permissions.is_admin %}
+          <td>
+             <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteLoanModal-{{ loan.id }}">
+               Supprimer
+             </button>
+          </td>
+          {% endif %}
+          {# --- FIN NOUVEAU --- #}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+   {# --- NOUVEAU: Modals Prêts (Admin) --- #}
+  {% if user.permissions.is_admin %}
+    {% for loan in loans %}
+    <div class="modal fade" id="deleteLoanModal-{{ loan.id }}" tabindex="-1" aria-labelledby="deleteLoanModalLabel-{{ loan.id }}" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content card">
+          <form action="{{ url_for('loan_delete_web', loan_id=loan.id) }}" method="POST">
+             <input type="hidden" name="employee_id" value="{{ selected_employee.id }}">
+            <div class="modal-header">
+              <h5 class="modal-title" id="deleteLoanModalLabel-{{ loan.id }}">Confirmer la Suppression</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" style="background-color: white;"></button>
+            </div>
+            <div class="modal-body">
+              <p>Êtes-vous sûr de vouloir supprimer le prêt #{{ loan.id }} de
+                 <strong>{{ "%.2f TND"|format(loan.principal|float) }}</strong> accordé le
+                 <strong>{{ loan.start_date.strftime('%Y-%m-%d') }}</strong> pour
+                 <strong>{{ selected_employee.first_name }} {{ selected_employee.last_name }}</strong> ?
+              </p>
+              <p class="text-danger">Cette action est irréversible (supprime aussi les remboursements).</p>
+            </div>
+            <div class="modal-footer form-actions">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+              <button type="submit" class="btn btn-danger">Oui, Supprimer</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  {% endif %}
+  {# --- FIN NOUVEAU --- #}
+  {% else %}
+    <p class="no-data" style="padding:1rem;">Aucun prêt enregistré pour cet employé.</p>
+  {% endif %}
+</div>
+</div>
+{# --- FIN TAB PRÊTS --- #}
+
+{% endif %} {# End of if selected_employee #}
 {% endblock %}
 
 {% block body_extra %}
+{# Keep existing script for tabs #}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-  const tabLinks = document.querySelectorAll('.tabs-luxe .tab-link');
+  const tabLinks = document.querySelectorAll('.luxe-tabs .tab-link');
   const tabContents = document.querySelectorAll('.tab-content');
 
   function showTab(targetId) {
@@ -173,7 +483,7 @@ document.addEventListener('DOMContentLoaded', function() {
     tabContents.forEach(c => c.classList.remove('active'));
 
     // Find the link and content panel that match the targetId
-    const activeLink = document.querySelector(`.tabs-luxe .tab-link[href="${targetId}"]`);
+    const activeLink = document.querySelector(`.luxe-tabs .tab-link[href="${targetId}"]`);
     const activeContent = document.querySelector(targetId);
 
     // Add 'active' class to them
@@ -182,6 +492,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     if (activeContent) {
       activeContent.classList.add('active');
+       // Store the active tab ID in localStorage
+      localStorage.setItem('activeEmployeeReportTab', targetId);
     }
   }
 
@@ -190,12 +502,20 @@ document.addEventListener('DOMContentLoaded', function() {
     link.addEventListener('click', e => {
       e.preventDefault(); // Stop the link from jumping
       const target = link.getAttribute('href');
-      showTab(target);
+      if (target.startsWith('#')) { // Ensure it's an internal anchor
+          showTab(target);
+      }
     });
   });
-  
-  // Show the first tab by default
-  showTab('#paie');
+
+   // Restore the active tab from localStorage on page load
+  const savedTab = localStorage.getItem('activeEmployeeReportTab');
+  if (savedTab && document.querySelector(savedTab)) {
+      showTab(savedTab);
+  } else if (tabLinks.length > 0) {
+      // Show the first tab by default if nothing saved or saved tab doesn't exist
+       showTab(tabLinks[0].getAttribute('href'));
+  }
 
 });
 </script>
