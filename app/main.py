@@ -565,6 +565,59 @@ async def deposits_create(
 
     return RedirectResponse(request.url_for('deposits_page'), status_code=status.HTTP_302_FOUND)
 
+@app.post("/deposits/{deposit_id}/delete", name="deposits_delete")
+async def deposits_delete(
+    request: Request,
+    deposit_id: int,
+    db: AsyncSession = Depends(get_db),
+    # --- FIX: Use correct permission 'can_manage_deposits' or is_admin ---
+    user: dict = Depends(web_require_permission("can_manage_deposits"))
+):
+    """Supprime un enregistrement d'avance."""
+
+    # Fetch the deposit record along with the employee to check branch permission
+    deposit_query = select(Deposit).options(selectinload(Deposit.employee)).where(Deposit.id == deposit_id)
+    permissions = user.get("permissions", {})
+    if not permissions.get("is_admin"):
+        # Non-admin requires specific permission AND matching branch
+        if not permissions.get("can_manage_deposits"): # Double check permission needed
+             return RedirectResponse(request.url_for("deposits_page"), status_code=status.HTTP_403_FORBIDDEN)
+        deposit_query = deposit_query.join(Employee).where(Employee.branch_id == user.get("branch_id"))
+
+    res_dep = await db.execute(deposit_query)
+    deposit_to_delete = res_dep.scalar_one_or_none()
+
+    if deposit_to_delete:
+        try:
+            employee_name = f"{deposit_to_delete.employee.first_name} {deposit_to_delete.employee.last_name}" if deposit_to_delete.employee else f"ID {deposit_to_delete.employee_id}"
+            deposit_date = deposit_to_delete.date
+            deposit_amount = deposit_to_delete.amount
+            emp_branch_id = deposit_to_delete.employee.branch_id if deposit_to_delete.employee else None
+
+            await db.delete(deposit_to_delete)
+            await db.commit()
+
+            # Log the deletion
+            await log(
+                db, user['id'], "delete", "deposit", deposit_id,
+                emp_branch_id, f"Avance supprimée ({deposit_amount} TND) pour {employee_name} du {deposit_date}"
+            )
+            await db.commit() # Commit the log entry
+
+            print(f"✅ Avance ID={deposit_id} supprimée avec succès.")
+
+        except Exception as e:
+            await db.rollback()
+            print(f"ERREUR lors de la suppression de l'avance ID={deposit_id}: {e}")
+            traceback.print_exc()
+            # Optionally add a flash message here
+
+    else:
+        # Deposit record not found or user doesn't have permission
+        print(f"Tentative de suppression de l'avance ID={deposit_id} échouée (non trouvée ou accès refusé).")
+
+    # Redirect back to the deposits list page
+    return RedirectResponse(request.url_for("deposits_page"), status_code=status.HTTP_302_FOUND)
 
 # --- Congés (Leaves) ---
 # ... (Leaves routes remain the same - not shown for brevity) ...
