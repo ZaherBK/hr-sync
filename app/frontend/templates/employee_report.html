@@ -106,7 +106,7 @@
       <div class="modal-dialog">
         <div class="modal-content card">
           {# --- FIX: Point to new report-specific delete route --- #}
-          <form action="{{ url_for('pay_delete_report', pay_id=p.id) }}" method="POST">
+          <form action="{{ url_for('pay_delete', pay_id=p.id) }}" method="POST">
              {# Hidden field to pass employee_id back for redirection #}
             <input type="hidden" name="employee_id" value="{{ selected_employee.id }}">
             <div class="modal-header">
@@ -183,7 +183,7 @@
       <div class="modal-dialog">
         <div class="modal-content card">
           {# --- FIX: Point to new report-specific delete route --- #}
-          <form action="{{ url_for('deposits_delete_report', deposit_id=d.id) }}" method="POST">
+          <form action="{{ url_for('deposits_delete', deposit_id=d.id) }}" method="POST">
              <input type="hidden" name="employee_id" value="{{ selected_employee.id }}">
             <div class="modal-header">
               <h5 class="modal-title" id="deleteDepositModalLabel-{{ d.id }}">Confirmer la Suppression</h5>
@@ -257,7 +257,7 @@
       <div class="modal-dialog">
         <div class="modal-content card">
           {# --- FIX: Point to new report-specific delete route --- #}
-          <form action="{{ url_for('attendance_delete_report', attendance_id=a.id) }}" method="POST">
+          <form action="{{ url_for('attendance_delete', attendance_id=a.id) }}" method="POST">
              <input type="hidden" name="employee_id" value="{{ selected_employee.id }}">
             <div class="modal-header">
               <h5 class="modal-title" id="deleteAttendanceModalLabel-{{ a.id }}">Confirmer la Suppression</h5>
@@ -353,7 +353,7 @@
       <div class="modal-dialog">
         <div class="modal-content card">
            {# --- FIX: Point to new report-specific delete route --- #}
-          <form action="{{ url_for('leaves_delete_report', leave_id=l.id) }}" method="POST">
+          <form action="{{ url_for('leaves_delete', leave_id=l.id) }}" method="POST">
             <input type="hidden" name="employee_id" value="{{ selected_employee.id }}">
             <div class="modal-header">
               <h5 class="modal-title" id="deleteLeaveModalLabel-{{ l.id }}">Confirmer la Suppression</h5>
@@ -439,7 +439,7 @@
       <div class="modal-dialog">
         <div class="modal-content card">
            {# --- FIX: Point to new report-specific delete route --- #}
-          <form action="{{ url_for('loans_delete_report', loan_id=loan.id) }}" method="POST">
+          <form action="{{ url_for('loan_delete_web', loan_id=loan.id) }}" method="POST">
              <input type="hidden" name="employee_id" value="{{ selected_employee.id }}">
             <div class="modal-header">
               <h5 class="modal-title" id="deleteLoanModalLabel-{{ loan.id }}">Confirmer la Suppression</h5>
