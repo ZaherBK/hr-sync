@@ -99,6 +99,10 @@
       </tbody>
     </table>
   </div>
+  {% else %}
+    <p class="no-data" style="padding:1rem;">Aucun historique de paie pour cet employé.</p>
+  {% endif %}
+</div>
   {# --- NOUVEAU: Modals Paie (Admin) --- #}
   {% if user.permissions.is_admin %}
     {% for p in pay_history %}
@@ -132,10 +136,6 @@
     {% endfor %}
   {% endif %}
   {# --- FIN NOUVEAU --- #}
-  {% else %}
-    <p class="no-data" style="padding:1rem;">Aucun historique de paie pour cet employé.</p>
-  {% endif %}
-</div>
 </div>
 
 {# --- Tab Content: Avances --- #}
@@ -176,6 +176,10 @@
       </tbody>
     </table>
   </div>
+  {% else %}
+      <p class="no-data" style="padding:1rem;">Aucune avance pour cet employé.</p>
+  {% endif %}
+</div>
    {# --- NOUVEAU: Modals Avances (Admin) --- #}
   {% if user.permissions.is_admin %}
     {% for d in deposits %}
@@ -208,10 +212,6 @@
     {% endfor %}
   {% endif %}
   {# --- FIN NOUVEAU --- #}
-  {% else %}
-      <p class="no-data" style="padding:1rem;">Aucune avance pour cet employé.</p>
-  {% endif %}
-</div>
 </div>
 
 {# --- Tab Content: Absences --- #}
@@ -250,6 +250,10 @@
       </tbody>
     </table>
   </div>
+  {% else %}
+    <p class="no-data" style="padding:1rem;">Aucune absence enregistrée pour cet employé.</p>
+  {% endif %}
+</div>
   {# --- NOUVEAU: Modals Absences (Admin) --- #}
   {% if user.permissions.is_admin %}
     {% for a in absences %}
@@ -281,10 +285,6 @@
     {% endfor %}
   {% endif %}
   {# --- FIN NOUVEAU --- #}
-  {% else %}
-    <p class="no-data" style="padding:1rem;">Aucune absence enregistrée pour cet employé.</p>
-  {% endif %}
-</div>
 </div>
 
 {# --- Tab Content: Conges --- #}
@@ -346,6 +346,10 @@
       </tbody>
     </table>
   </div>
+  {% else %}
+    <p class="no-data" style="padding:1rem;">Aucun congé enregistré pour cet employé.</p>
+  {% endif %}
+</div>
    {# --- NOUVEAU: Modals Congés (Admin) --- #}
   {% if user.permissions.is_admin %}
     {% for l in leaves %}
@@ -377,10 +381,6 @@
     {% endfor %}
   {% endif %}
   {# --- FIN NOUVEAU --- #}
-  {% else %}
-    <p class="no-data" style="padding:1rem;">Aucun congé enregistré pour cet employé.</p>
-  {% endif %}
-</div>
 </div>
 
 {# --- NOUVEAU: Tab Prêts --- #}
@@ -432,6 +432,10 @@
       </tbody>
     </table>
   </div>
+  {% else %}
+    <p class="no-data" style="padding:1rem;">Aucun prêt enregistré pour cet employé.</p>
+  {% endif %}
+</div>
    {# --- NOUVEAU: Modals Prêts (Admin) --- #}
   {% if user.permissions.is_admin %}
     {% for loan in loans %}
@@ -464,10 +468,6 @@
     {% endfor %}
   {% endif %}
   {# --- FIN NOUVEAU --- #}
-  {% else %}
-    <p class="no-data" style="padding:1rem;">Aucun prêt enregistré pour cet employé.</p>
-  {% endif %}
-</div>
 </div>
 {# --- FIN TAB PRÊTS --- #}
 
