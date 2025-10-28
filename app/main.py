@@ -714,6 +714,54 @@ async def leaves_approve(
 
     return RedirectResponse(request.url_for('leaves_page'), status_code=status.HTTP_302_FOUND)
 
+@app.post("/leaves/{leave_id}/delete", name="leaves_delete")
+async def leaves_delete(
+    request: Request,
+    leave_id: int,
+    db: AsyncSession = Depends(get_db),
+    # Only Admin can delete leaves for now, adjust permission if needed
+    user: dict = Depends(web_require_permission("is_admin"))
+):
+    """Supprime une demande de congé."""
+
+    # Fetch the leave record along with the employee
+    # No need for branch check here as only admin can access
+    leave_query = select(Leave).options(selectinload(Leave.employee)).where(Leave.id == leave_id)
+
+    res_leave = await db.execute(leave_query)
+    leave_to_delete = res_leave.scalar_one_or_none()
+
+    if leave_to_delete:
+        try:
+            employee_name = f"{leave_to_delete.employee.first_name} {leave_to_delete.employee.last_name}" if leave_to_delete.employee else f"ID {leave_to_delete.employee_id}"
+            leave_start = leave_to_delete.start_date
+            leave_end = leave_to_delete.end_date
+            emp_branch_id = leave_to_delete.employee.branch_id if leave_to_delete.employee else None
+
+            await db.delete(leave_to_delete)
+            await db.commit()
+
+            # Log the deletion
+            await log(
+                db, user['id'], "delete", "leave", leave_id,
+                emp_branch_id, f"Congé supprimé ({leave_start} à {leave_end}) pour {employee_name}"
+            )
+            await db.commit() # Commit the log entry
+
+            print(f"✅ Congé ID={leave_id} supprimé avec succès.")
+
+        except Exception as e:
+            await db.rollback()
+            print(f"ERREUR lors de la suppression du congé ID={leave_id}: {e}")
+            traceback.print_exc()
+            # Optionally add a flash message here
+
+    else:
+        # Leave record not found
+        print(f"Tentative de suppression du congé ID={leave_id} échouée (non trouvé).")
+
+    # Redirect back to the leaves list page
+    return RedirectResponse(request.url_for("leaves_page"), status_code=status.HTTP_302_FOUND)
 
 # --- Rapport Employé ---
 # ... (Employee Report route remains the same - not shown for brevity) ...
