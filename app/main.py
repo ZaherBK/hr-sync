@@ -1574,11 +1574,14 @@ async def loans_create_web(
     request: Request,
     employee_id: Annotated[int, Form()],
     principal: Annotated[Decimal, Form()],
-    term_count: Annotated[int, Form()] = 1, # Gardé pour compatibilité API
-    term_unit: Annotated[str, Form()] = "month", # Gardé pour compatibilité API
-    start_date: Annotated[dt_date, Form()] = dt_date.today(),
-    first_due_date: Annotated[dt_date | None, Form()] = None, # Gardé pour compatibilité API
-    notes: Annotated[str, Form()] = None,
+    start_date: Annotated[dt_date, Form()], # Seul champ de date requis
+
+    # Rendre les autres champs optionnels avec des valeurs par défaut
+    term_count: Annotated[int, Form()] = 1,
+    term_unit: Annotated[str, Form()] = "month",
+    first_due_date: Annotated[dt_date | None, Form()] = None,
+    notes: Annotated[str | None, Form()] = None, # <-- Rendu optionnel
+
     db: AsyncSession = Depends(get_db),
     user: dict = Depends(web_require_permission("can_manage_loans")),
 ):
@@ -1586,31 +1589,36 @@ async def loans_create_web(
     res_emp = await db.execute(select(Employee).where(Employee.id == employee_id))
     employee = res_emp.scalar_one_or_none()
     if not employee:
-         return RedirectResponse(request.url_for("loans_page"), status_code=status.HTTP_302_FOUND)
+        return RedirectResponse(request.url_for("loans_page"), status_code=status.HTTP_302_FOUND)
 
     permissions = user.get("permissions", {})
     if not permissions.get("is_admin") and user.get("branch_id") != employee.branch_id:
         return RedirectResponse(request.url_for("loans_page"), status_code=status.HTTP_302_FOUND)
 
-    # Créer le payload pour l'API interne, même si certains champs ne sont plus utilisés par la logique web
+    # --- CORRECTION ---
+    # 1. Passer 'notes' directement dans le payload
     payload = LoanCreate(
-        employee_id=employee_id, principal=principal, interest_type="none",
-        annual_interest_rate=None, term_count=term_count, term_unit=term_unit,
-        start_date=start_date, first_due_date=first_due_date, fee=None
+        employee_id=employee_id, 
+        principal=principal, 
+        interest_type="none",
+        annual_interest_rate=None, 
+        term_count=term_count, 
+        term_unit=term_unit,
+        start_date=start_date, 
+        first_due_date=first_due_date, 
+        fee=None,
+        notes=notes  # <-- 'notes' est ajouté ici
     )
+    
     from app.api.loans import create_loan
 
+    # 'new_loan' est créé par l'API (qui n'a pas de commit)
     new_loan = await create_loan(payload, db, user)
 
-    # Ajouter la note manuellement
-    if new_loan and notes:
-        try:
-            new_loan.notes = notes
-            await db.commit()
-        except Exception as e:
-            await db.rollback()
-            print(f"Erreur lors de l'ajout de la note au prêt: {e}")
+    # 2. SUPPRIMER le bloc 'if new_loan and notes:'
+    # Il n'est plus nécessaire et il cause le crash.
 
+    # Le 'commit' sera géré par le 'get_db'
     return RedirectResponse(request.url_for("loans_page"), status_code=status.HTTP_302_FOUND)
 
 
