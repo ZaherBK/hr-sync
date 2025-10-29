@@ -14,6 +14,25 @@ from .db import get_session
 from .auth import get_current_user
 from .models import User
 
+# 1. Create a NEW dependency to get the FULL database user
+async def get_current_db_user(
+    db: AsyncSession = Depends(get_db),
+    # MODIFIED: Use the new safe getter defined above
+    user_data: dict | None = Depends(get_user_data_from_session_safe)
+) -> models.User | None:
+
+    if not user_data:
+        return None
+
+    # ... (rest of your existing DB lookup logic remains the same)
+    user_email = user_data.get("email")
+    if not user_email:
+        return None
+
+    result = await db.execute(
+        select(models.User).options(selectinload(models.User.permissions)).where(models.User.email == user_email)
+    )
+    return result.scalar_one_or_none()
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """
