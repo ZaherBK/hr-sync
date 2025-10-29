@@ -2,7 +2,6 @@ import os
 from datetime import timedelta, date as dt_date, datetime
 from decimal import Decimal
 from typing import Annotated, List, Optional
-from starlette.requests import Request # Ensure this is imported
 import json
 import enum # Ajout de l'import enum manquant
 import traceback # Pour un meilleur logging d'erreur
@@ -12,6 +11,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
+from starlette.requests import Request # Ensure this is imported
 from sqlalchemy import select, delete, func, case, extract, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -40,7 +40,10 @@ from .audit import latest, log
 # Import Routers
 from .routers import users, branches, employees as employees_api, attendance as attendance_api, leaves as leaves_api, deposits as deposits_api
 # --- MODIFIÉ : Importer les nouvelles dépendances ---
-from .deps import get_db, web_require_permission, get_current_session_user, get_user_data_from_session_safe 
+from .deps import get_db, web_require_permission, get_current_session_user
+# --- NOUVEAU: Import de la fonction safe si elle est dans deps.py ---
+from .deps import get_user_data_from_session_safe 
+# --- FIN NOUVEAU ---
 # --- LOANS API Router ---
 from app.api import loans as loans_api
 # Note: Redundant imports like `from app.models import Employee...` are removed as they are covered by `from .models import ...`
@@ -83,29 +86,24 @@ app.add_middleware(
 )
 
 
-def get_user_data_from_session_safe(request: Request) -> Optional[dict]:
-    """Retrieves user dict from session, or None if not found (no redirect/exception)."""
-    return request.session.get("user")
-
-
 # 1. Create a NEW dependency to get the FULL database user
 async def get_current_db_user(
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     # MODIFIÉ: Utiliser la version 'safe' qui retourne None au lieu de rediriger
-    user_data: dict | None = Depends(get_user_data_from_session_safe)
+    user_data: dict | None = Depends(get_user_data_from_session_safe)
 ) -> models.User | None:
 
-    if not user_data:
-        return None
+    if not user_data:
+        return None
 
-    user_email = user_data.get("email")
-    if not user_email:
-        return None
+    user_email = user_data.get("email")
+    if not user_email:
+        return None
 
-    result = await db.execute(
-        select(models.User).options(selectinload(models.User.permissions)).where(models.User.email == user_email)
-    )
-    return result.scalar_one_or_none()
+    result = await db.execute(
+        select(models.User).options(selectinload(models.User.permissions)).where(models.User.email == user_email)
+    )
+    return result.scalar_one_or_none()
 
 
 # --- 3. Startup Event (MODIFIÉ) ---
@@ -224,10 +222,10 @@ def _parse_dates(item: dict, date_fields: list[str] = [], datetime_fields: list[
 
                 # Essayer différents formats si fromisoformat échoue
                 try:
-                   item[field] = datetime.fromisoformat(dt_str)
+                    item[field] = datetime.fromisoformat(dt_str)
                 except ValueError:
-                   # Tenter avec un format commun si isoformat échoue (ex: backup ancien)
-                   item[field] = datetime.strptime(dt_str, '%Y-%m-%d %H:%M:%S')
+                    # Tenter avec un format commun si isoformat échoue (ex: backup ancien)
+                    item[field] = datetime.strptime(dt_str, '%Y-%m-%d %H:%M:%S')
             except ValueError:
                 print(f"AVERTISSEMENT: Impossible de parser datetime '{item[field]}' pour le champ '{field}'. Mise à None.")
                 item[field] = None
@@ -236,48 +234,50 @@ def _parse_dates(item: dict, date_fields: list[str] = [], datetime_fields: list[
 
 # --- 5. Routes des Pages Web (GET et POST) ---
 
+# MODIFIÉ: S'assurer que current_user est Optional[models.User] pour que l'opération 'if not current_user' fonctionne
 @app.get("/", response_class=HTMLResponse, name="home")
 async def home(
-    request: Request,
-    db: AsyncSession = Depends(get_db), # <<< Add db dependency
-    current_user: Optional[models.User] = Depends(get_current_db_user) # Get full user object (now Optional)
+    request: Request,
+    db: AsyncSession = Depends(get_db), # <<< Add db dependency
+    current_user: Optional[models.User] = Depends(get_current_db_user) # Get full user object (now Optional)
 ):
-    # CETTE LIGNE EST MAINTENANT LA SEULE SOURCE DE REDIRECTION POUR LA PAGE D'ACCUEIL
-    if current_user is None:
-        return RedirectResponse(request.url_for("login_page"), status_code=status.HTTP_302_FOUND)
+    # CETTE LIGNE EST MAINTENANT LA SEULE SOURCE DE REDIRECTION POUR LA PAGE D'ACCUEIL
+    if current_user is None:
+        return RedirectResponse(request.url_for("login_page"), status_code=status.HTTP_302_FOUND)
 
 # --- FIX: Fetch recent activity logs FOR ADMIN ---
     # Le reste de la logique reste le même car il se trouve maintenant dans le bloc
     # qui n'est exécuté que si current_user est valide.
-    activity_logs = []
-    # Ensure permissions relation is loaded and user has permissions attribute
-    if hasattr(current_user, 'permissions') and current_user.permissions and current_user.permissions.is_admin:
-        permissions_dict = current_user.permissions.to_dict() # Use the existing method
-        # --- FIX: Call 'latest' correctly ---
-        activity_logs = await latest(
-            db, # Pass db as the first argument
-            user_is_admin=permissions_dict.get("is_admin", False),
-            branch_id=current_user.branch_id, # Use branch_id from the full user object
-             # Fetch a broader range of activities for the admin dashboard view
-            entity_types=["leave", "attendance", "deposit", "pay", "loan", "user", "role", "employee", "branch", "all_logs"],
-            limit=15 # Limit to the latest 15 activities for the dashboard
-        )
-        # --- END FIX ---
-        # Optional Eager Loading (commented out as 'latest' might handle it)
-        # actor_ids = {log.actor_id for log in activity_logs if log.actor_id}
-        # if actor_ids:
-        #     actors_res = await db.execute(select(User).where(User.id.in_(actor_ids)))
-        #     actors_map = {actor.id: actor for actor in actors_res.scalars()}
-        #     for log in activity_logs:
-        #         log.actor = actors_map.get(log.actor_id)
-    # --- END FIX BLOCK ---
+    activity_logs = []
+    # Ensure permissions relation is loaded and user has permissions attribute
+    if hasattr(current_user, 'permissions') and current_user.permissions and current_user.permissions.is_admin:
+        permissions_dict = current_user.permissions.to_dict() # Use the existing method
+        # --- FIX: Call 'latest' correctly ---
+        activity_logs = await latest(
+            db, # Pass db as the first argument
+            user_is_admin=permissions_dict.get("is_admin", False),
+            branch_id=current_user.branch_id, # Use branch_id from the full user object
+             # Fetch a broader range of activities for the admin dashboard view
+            entity_types=["leave", "attendance", "deposit", "pay", "loan", "user", "role", "employee", "branch", "all_logs"],
+            limit=15 # Limit to the latest 15 activities for the dashboard
+        )
+        # --- END FIX ---
+        # Optional Eager Loading (commented out as 'latest' might handle it)
+        # actor_ids = {log.actor_id for log in activity_logs if log.actor_id}
+        # if actor_ids:
+        #      actors_res = await db.execute(select(User).where(User.id.in_(actor_ids)))
+        #      actors_map = {actor.id: actor for actor in actors_res.scalars()}
+        #      for log in activity_logs:
+        #          log.actor = actors_map.get(log.actor_id)
+    # --- END FIX BLOCK ---
 
-    context = {
-        "request": request,
-        "user": current_user, # Pass the full user object
-        "activity": activity_logs # Pass activity logs to template
-    }
-    return templates.TemplateResponse("dashboard.html", context)
+    context = {
+        "request": request,
+        "user": current_user, # Pass the full user object
+        "activity": activity_logs # Pass activity logs to template
+    }
+    return templates.TemplateResponse("dashboard.html", context)
+
 
 @app.get("/login", response_class=HTMLResponse, name="login_page")
 async def login_page(request: Request, db: AsyncSession = Depends(get_db)):
@@ -1409,14 +1409,14 @@ async def import_data(
                     print(f"AVERTISSEMENT: Mot de passe manquant pour {user_data.get('email', 'Utilisateur inconnu')}. Utilisation de 'password123'.")
                     user_data['hashed_password'] = hash_password("password123")
                 else:
-                     user_data['hashed_password'] = str(user_data['hashed_password'])
+                    user_data['hashed_password'] = str(user_data['hashed_password'])
 
                 user_data = _parse_dates(user_data, datetime_fields=['created_at'])
                 user_data.setdefault('is_active', True)
                 user_data.setdefault('role_id', 1)
                 if user_data.get('role_id') is None:
-                     print(f"AVERTISSEMENT: role_id manquant ou null pour {user_data.get('email', 'Utilisateur inconnu')}. Assignation du rôle ID 1 (Admin).")
-                     user_data['role_id'] = 1
+                    print(f"AVERTISSEMENT: role_id manquant ou null pour {user_data.get('email', 'Utilisateur inconnu')}. Assignation du rôle ID 1 (Admin).")
+                    user_data['role_id'] = 1
                 db.add(User(**user_data))
 
         if "employees" in data:
@@ -1475,8 +1475,8 @@ async def import_data(
                 item.setdefault('details', None)
                 # Ensure required fields like action and entity exist
                 if not item.get('action') or not item.get('entity'):
-                     print(f"AVERTISSEMENT: Action ou Entité manquante pour l'entrée d'audit log ID {item.get('id', 'N/A')}. Log ignoré.")
-                     continue
+                    print(f"AVERTISSEMENT: Action ou Entité manquante pour l'entrée d'audit log ID {item.get('id', 'N/A')}. Log ignoré.")
+                    continue
 
                 # Remove 'id' if present, let DB generate new one if needed, or handle potential conflicts
                 item.pop('id', None)
@@ -1540,9 +1540,9 @@ async def import_data(
         print("ERREUR: Le fichier de sauvegarde n'est pas un JSON valide.")
         await db.rollback()
     except KeyError as e:
-         print(f"ERREUR lors de l'import: Clé manquante dans le JSON - {e}")
-         traceback.print_exc()
-         await db.rollback()
+          print(f"ERREUR lors de l'import: Clé manquante dans le JSON - {e}")
+          traceback.print_exc()
+          await db.rollback()
     except Exception as e:
         await db.rollback()
         print(f"ERREUR lors de l'import: {e}")
@@ -1601,16 +1601,16 @@ async def loans_create_web(
     # --- CORRECTION ---
     # 1. Passer 'notes' directement dans le payload
     payload = LoanCreate(
-        employee_id=employee_id, 
-        principal=principal, 
+        employee_id=employee_id,
+        principal=principal,
         interest_type="none",
-        annual_interest_rate=None, 
-        term_count=term_count, 
+        annual_interest_rate=None,
+        term_count=term_count,
         term_unit=term_unit,
-        start_date=start_date, 
-        first_due_date=first_due_date, 
+        start_date=start_date,
+        first_due_date=first_due_date,
         fee=None,
-        notes=notes  # <-- 'notes' est ajouté ici
+        notes=notes # <-- 'notes' est ajouté ici
     )
     
     from app.api.loans import create_loan
@@ -1721,12 +1721,12 @@ async def loan_repay_web(
     loan_check_query = select(Loan).options(selectinload(Loan.employee)).where(Loan.id == loan_id)
     permissions = user.get("permissions", {})
     if not permissions.get("is_admin"):
-         loan_check_query = loan_check_query.join(Employee).where(Employee.branch_id == user.get("branch_id"))
+          loan_check_query = loan_check_query.join(Employee).where(Employee.branch_id == user.get("branch_id"))
 
     loan_exists = (await db.execute(loan_check_query)).scalar_one_or_none()
     if not loan_exists:
         # L'utilisateur n'a pas accès à ce prêt ou il n'existe pas
-         return RedirectResponse(request.url_for("loans_page"), status_code=status.HTTP_302_FOUND)
+          return RedirectResponse(request.url_for("loans_page"), status_code=status.HTTP_302_FOUND)
 
     payload = schemas.RepaymentCreate(
         amount=amount, paid_on=paid_on, source="cash",
@@ -1740,9 +1740,9 @@ async def loan_repay_web(
         print(f"Erreur HTTP lors du remboursement web pour prêt {loan_id}: {e.detail}")
         # Ajouter potentiellement un message flash ici
     except Exception as e:
-         print(f"Erreur générale lors du remboursement web pour prêt {loan_id}: {e}")
-         await db.rollback() # S'assurer que la session est propre en cas d'erreur inattendue
-         # Ajouter potentiellement un message flash ici
+          print(f"Erreur générale lors du remboursement web pour prêt {loan_id}: {e}")
+          await db.rollback() # S'assurer que la session est propre en cas d'erreur inattendue
+          # Ajouter potentiellement un message flash ici
 
     return RedirectResponse(
         request.url_for("loan_detail_page", loan_id=loan_id),
