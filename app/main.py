@@ -1569,8 +1569,20 @@ async def loans_page(request: Request, db: AsyncSession = Depends(get_db), user:
         loans_query = loans_query.join(Employee).where(Employee.branch_id == user.get("branch_id"))
 
     loans = (await db.execute(loans_query.limit(200))).scalars().all()
+    
+    # --- ADD THIS LINE ---
+    today_date_iso = dt_date.today().isoformat()
+    # --- END ADD ---
 
-    return templates.TemplateResponse("loans.html", {"request": request, "user": user, "app_name": APP_NAME, "employees": employees, "loans": loans})
+    return templates.TemplateResponse("loans.html", {
+        "request": request, 
+        "user": user, 
+        "app_name": APP_NAME, 
+        "employees": employees, 
+        "loans": loans,
+        # --- AND ADD THIS LINE ---
+        "today_date": today_date_iso 
+    })
 
 
 @app.post("/loans/create", name="loans_create_web")
