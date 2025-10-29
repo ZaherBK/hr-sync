@@ -2,6 +2,7 @@ import os
 from datetime import timedelta, date as dt_date, datetime
 from decimal import Decimal
 from typing import Annotated, List, Optional
+from starlette.requests import Request # Ensure this is imported
 import json
 import enum # Ajout de l'import enum manquant
 import traceback # Pour un meilleur logging d'erreur
@@ -80,6 +81,12 @@ app.add_middleware(
     secret_key=os.getenv("SECRET_KEY", "une_cle_secrete_tres_longue_et_aleatoire"),
     max_age=int(ACCESS_TOKEN_EXPIRE_MINUTES) * 60
 )
+
+
+def get_user_data_from_session_safe(request: Request) -> Optional[dict]:
+    """Retrieves user dict from session, or None if not found (no redirect/exception)."""
+    return request.session.get("user")
+
 
 # 1. Create a NEW dependency to get the FULL database user
 async def get_current_db_user(
