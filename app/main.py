@@ -1572,56 +1572,50 @@ async def loans_page(request: Request, db: AsyncSession = Depends(get_db), user:
 
     return templates.TemplateResponse("loans.html", {"request": request, "user": user, "app_name": APP_NAME, "employees": employees, "loans": loans})
 
+
 @app.post("/loans/create", name="loans_create_web")
 async def loans_create_web(
     request: Request,
     employee_id: Annotated[int, Form()],
     principal: Annotated[Decimal, Form()],
-    start_date: Annotated[dt_date, Form()], # Seul champ de date requis
-
-    # Rendre les autres champs optionnels avec des valeurs par défaut
-    term_count: Annotated[int, Form()] = 1,
-    term_unit: Annotated[str, Form()] = "month",
-    first_due_date: Annotated[dt_date | None, Form()] = None,
-    notes: Annotated[str | None, Form()] = None, # <-- Rendu optionnel
-
+    term_count: Annotated[int, Form()] = 1, # Gardé pour compatibilité API
+    term_unit: Annotated[str, Form()] = "month", # Gardé pour compatibilité API
+    start_date: Annotated[dt_date, Form()] = dt_date.today(),
+    first_due_date: Annotated[dt_date | None, Form()] = None, # Gardé pour compatibilité API
+    notes: Annotated[str, Form()] = None,
     db: AsyncSession = Depends(get_db),
     user: dict = Depends(web_require_permission("can_manage_loans")),
 ):
+
     # Vérifier l'autorisation de gérer l'employé
     res_emp = await db.execute(select(Employee).where(Employee.id == employee_id))
     employee = res_emp.scalar_one_or_none()
     if not employee:
-        return RedirectResponse(request.url_for("loans_page"), status_code=status.HTTP_302_FOUND)
+         return RedirectResponse(request.url_for("loans_page"), status_code=status.HTTP_302_FOUND)
 
     permissions = user.get("permissions", {})
     if not permissions.get("is_admin") and user.get("branch_id") != employee.branch_id:
         return RedirectResponse(request.url_for("loans_page"), status_code=status.HTTP_302_FOUND)
 
-    # --- CORRECTION ---
-    # 1. Passer 'notes' directement dans le payload
+    # Créer le payload pour l'API interne, même si certains champs ne sont plus utilisés par la logique web
     payload = LoanCreate(
-        employee_id=employee_id,
-        principal=principal,
-        interest_type="none",
-        annual_interest_rate=None,
-        term_count=term_count,
-        term_unit=term_unit,
-        start_date=start_date,
-        first_due_date=first_due_date,
-        fee=None,
-        notes=notes # <-- 'notes' est ajouté ici
-    )
-    
-    from app.api.loans import create_loan
+        employee_id=employee_id, principal=principal, interest_type="none",
+        annual_interest_rate=None, term_count=term_count, term_unit=term_unit,
+        start_date=start_date, first_due_date=first_due_date, fee=None
 
-    # 'new_loan' est créé par l'API (qui n'a pas de commit)
+    )
+    from app.api.loans import create_loan
     new_loan = await create_loan(payload, db, user)
 
-    # 2. SUPPRIMER le bloc 'if new_loan and notes:'
-    # Il n'est plus nécessaire et il cause le crash.
+    # Ajouter la note manuellement
+    if new_loan and notes:
+        try:
+            new_loan.notes = notes or None
+            await db.commit()
+        except Exception as e:
+            await db.rollback()
+            print(f"Erreur lors de l'ajout de la note au prêt: {e}")
 
-    # Le 'commit' sera géré par le 'get_db'
     return RedirectResponse(request.url_for("loans_page"), status_code=status.HTTP_302_FOUND)
 
 
@@ -1730,7 +1724,7 @@ async def loan_repay_web(
 
     payload = schemas.RepaymentCreate(
         amount=amount, paid_on=paid_on, source="cash",
-        notes=notes, schedule_id=None
+        notes=notes or None, schedule_id=None
     )
 
     try:
