@@ -40,7 +40,7 @@ from .audit import latest, log
 # Import Routers
 from .routers import users, branches, employees as employees_api, attendance as attendance_api, leaves as leaves_api, deposits as deposits_api
 # --- MODIFIÉ : Importer les nouvelles dépendances ---
-from .deps import get_db, web_require_permission, get_current_session_user
+from .deps import get_db, web_require_permission, get_current_session_user, get_user_data_from_session_safe 
 # --- LOANS API Router ---
 from app.api import loans as loans_api
 # Note: Redundant imports like `from app.models import Employee...` are removed as they are covered by `from .models import ...`
@@ -90,21 +90,22 @@ def get_user_data_from_session_safe(request: Request) -> Optional[dict]:
 
 # 1. Create a NEW dependency to get the FULL database user
 async def get_current_db_user(
-    db: AsyncSession = Depends(get_db),
-    user_data: dict = Depends(get_current_session_user)
+    db: AsyncSession = Depends(get_db),
+    # MODIFIÉ: Utiliser la version 'safe' qui retourne None au lieu de rediriger
+    user_data: dict | None = Depends(get_user_data_from_session_safe)
 ) -> models.User | None:
 
-    if not user_data:
-        return None
+    if not user_data:
+        return None
 
-    user_email = user_data.get("email")
-    if not user_email:
-        return None
+    user_email = user_data.get("email")
+    if not user_email:
+        return None
 
-    result = await db.execute(
-        select(models.User).options(selectinload(models.User.permissions)).where(models.User.email == user_email)
-    )
-    return result.scalar_one_or_none()
+    result = await db.execute(
+        select(models.User).options(selectinload(models.User.permissions)).where(models.User.email == user_email)
+    )
+    return result.scalar_one_or_none()
 
 
 # --- 3. Startup Event (MODIFIÉ) ---
@@ -237,44 +238,46 @@ def _parse_dates(item: dict, date_fields: list[str] = [], datetime_fields: list[
 
 @app.get("/", response_class=HTMLResponse, name="home")
 async def home(
-    request: Request,
-    db: AsyncSession = Depends(get_db), # <<< Add db dependency
-    current_user: models.User = Depends(get_current_db_user) # Get full user object
+    request: Request,
+    db: AsyncSession = Depends(get_db), # <<< Add db dependency
+    current_user: Optional[models.User] = Depends(get_current_db_user) # Get full user object (now Optional)
 ):
-    if not current_user:
-        return RedirectResponse("/login", status_code=status.HTTP_302_FOUND)
+    # CETTE LIGNE EST MAINTENANT LA SEULE SOURCE DE REDIRECTION POUR LA PAGE D'ACCUEIL
+    if current_user is None:
+        return RedirectResponse(request.url_for("login_page"), status_code=status.HTTP_302_FOUND)
 
 # --- FIX: Fetch recent activity logs FOR ADMIN ---
-    activity_logs = []
-    # Ensure permissions relation is loaded and user has permissions attribute
-    if hasattr(current_user, 'permissions') and current_user.permissions and current_user.permissions.is_admin:
-        permissions_dict = current_user.permissions.to_dict() # Use the existing method
-        # --- FIX: Call 'latest' correctly ---
-        activity_logs = await latest(
-            db, # Pass db as the first argument
-            user_is_admin=permissions_dict.get("is_admin", False),
-            branch_id=current_user.branch_id, # Use branch_id from the full user object
-             # Fetch a broader range of activities for the admin dashboard view
-            entity_types=["leave", "attendance", "deposit", "pay", "loan", "user", "role", "employee", "branch", "all_logs"],
-            limit=15 # Limit to the latest 15 activities for the dashboard
-        )
-        # --- END FIX ---
-        # Optional Eager Loading (commented out as 'latest' might handle it)
-        # actor_ids = {log.actor_id for log in activity_logs if log.actor_id}
-        # if actor_ids:
-        #     actors_res = await db.execute(select(User).where(User.id.in_(actor_ids)))
-        #     actors_map = {actor.id: actor for actor in actors_res.scalars()}
-        #     for log in activity_logs:
-        #         log.actor = actors_map.get(log.actor_id)
-    # --- END FIX BLOCK ---
+    # Le reste de la logique reste le même car il se trouve maintenant dans le bloc
+    # qui n'est exécuté que si current_user est valide.
+    activity_logs = []
+    # Ensure permissions relation is loaded and user has permissions attribute
+    if hasattr(current_user, 'permissions') and current_user.permissions and current_user.permissions.is_admin:
+        permissions_dict = current_user.permissions.to_dict() # Use the existing method
+        # --- FIX: Call 'latest' correctly ---
+        activity_logs = await latest(
+            db, # Pass db as the first argument
+            user_is_admin=permissions_dict.get("is_admin", False),
+            branch_id=current_user.branch_id, # Use branch_id from the full user object
+             # Fetch a broader range of activities for the admin dashboard view
+            entity_types=["leave", "attendance", "deposit", "pay", "loan", "user", "role", "employee", "branch", "all_logs"],
+            limit=15 # Limit to the latest 15 activities for the dashboard
+        )
+        # --- END FIX ---
+        # Optional Eager Loading (commented out as 'latest' might handle it)
+        # actor_ids = {log.actor_id for log in activity_logs if log.actor_id}
+        # if actor_ids:
+        #     actors_res = await db.execute(select(User).where(User.id.in_(actor_ids)))
+        #     actors_map = {actor.id: actor for actor in actors_res.scalars()}
+        #     for log in activity_logs:
+        #         log.actor = actors_map.get(log.actor_id)
+    # --- END FIX BLOCK ---
 
-    context = {
-        "request": request,
-        "user": current_user, # Pass the full user object
-        "activity": activity_logs # Pass activity logs to template
-    }
-    return templates.TemplateResponse("dashboard.html", context)
-
+    context = {
+        "request": request,
+        "user": current_user, # Pass the full user object
+        "activity": activity_logs # Pass activity logs to template
+    }
+    return templates.TemplateResponse("dashboard.html", context)
 
 @app.get("/login", response_class=HTMLResponse, name="login_page")
 async def login_page(request: Request, db: AsyncSession = Depends(get_db)):
