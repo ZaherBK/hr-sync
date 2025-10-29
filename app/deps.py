@@ -7,9 +7,10 @@ currently authenticated user for route handlers.
 from fastapi import Depends, HTTPException, Request, Response, status
 from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
+from app.db import AsyncSessionLocal
 from typing import AsyncGenerator, Optional
 
-from .db import AsyncSessionLocal, get_session
+from .db import get_session
 from .auth import get_current_user
 from .models import User
 
@@ -38,7 +39,7 @@ async def api_current_user(user: User = Depends(get_current_user)) -> User:
     return user
 
 
-# --- NOUVELLE DÉPENDANCE : Obtenir les données de l'utilisateur de la session sans redirection ---
+# --- NOUVELLE DÉPENDANCE : Obtenir les données de l'utilisateur de la session sans redirection (Used by '/') ---
 def get_user_data_from_session_safe(request: Request) -> Optional[dict]:
     """
     (WEB) Dependency that yields the user dict from the session, or None if not found.
@@ -49,17 +50,15 @@ def get_user_data_from_session_safe(request: Request) -> Optional[dict]:
 
 
 # --- DÉPENDANCE REDIRIGEANTE (pour les pages PROTÉGÉES) ---
-def get_current_session_user(request: Request) -> dict:
+def get_current_session_user(request: Request) -> dict | RedirectResponse:
     """
     (WEB) Dependency that yields the user dict from the session.
     Si l'utilisateur n'est pas trouvé, redirige vers la page de connexion.
     """
     user = request.session.get("user")
-    if not user:
-        # Redirection vers la page de connexion si non connecté
+    if user is None:
+        # Retourner la RedirectResponse directement, Starlette/FastAPI la gère
         return RedirectResponse(request.url_for('login_page'), status_code=status.HTTP_302_FOUND)
-        # Note: Starlette/FastAPI will automatically catch this RedirectResponse
-        # and return it as the final response, stopping further dependency checks.
     return user
 
 
@@ -67,18 +66,15 @@ def web_require_permission(permission: str):
     """
     (WEB) Dependency factory that asserts the user in SESSION has the permission.
     """
-    # NOTE: Cette dépendance utilise la fonction get_current_session_user qui peut
-    # retourner une RedirectResponse si l'utilisateur n'est pas authentifié.
     def get_permission_dependency(
         request: Request, # Ajout de request pour la redirection
-        user: dict = Depends(get_current_session_user)
-    ) -> dict:
+        user: dict | RedirectResponse = Depends(get_current_session_user)
+    ) -> dict | RedirectResponse:
         """Vérifie la permission dans le dictionnaire de la session."""
         
-        # Si get_current_session_user a renvoyé une RedirectResponse, 'user' ne sera pas un dict,
-        # mais la RedirectResponse aura déjà été retournée par FastAPI.
+        # Si l'utilisateur n'était pas authentifié, la RedirectResponse est déjà renvoyée
         if isinstance(user, RedirectResponse):
-             return user # Should be unreachable due to FastAPI handling, but kept as safeguard
+             return user 
         
         permissions = user.get("permissions", {})
 
